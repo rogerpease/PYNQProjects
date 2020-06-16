@@ -1,0 +1,12 @@
+#-----------------------------------------------------------
+# Vivado v2019.2 (64-bit)
+# SW Build 2708876 on Wed Nov  6 21:39:14 MST 2019
+# IP Build 2700528 on Thu Nov  7 00:09:20 MST 2019
+# Start of session at: Mon Jun 15 20:19:15 2020
+# Process ID: 112490
+# Current directory: /home/rpease/PYNQProjects/SimpleLogicModule/SimpleLogicModuleFPGAImplementation/SimpleLogicModuleFPGAImplementation.runs/SimpleLogicModuleFPGAImplementationDesign_SimpleLogicModuleAXI_0_0_synth_1
+# Command line: vivado -log SimpleLogicModuleFPGAImplementationDesign_SimpleLogicModuleAXI_0_0.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source SimpleLogicModuleFPGAImplementationDesign_SimpleLogicModuleAXI_0_0.tcl
+# Log file: /home/rpease/PYNQProjects/SimpleLogicModule/SimpleLogicModuleFPGAImplementation/SimpleLogicModuleFPGAImplementation.runs/SimpleLogicModuleFPGAImplementationDesign_SimpleLogicModuleAXI_0_0_synth_1/SimpleLogicModuleFPGAImplementationDesign_SimpleLogicModuleAXI_0_0.vds
+# Journal file: /home/rpease/PYNQProjects/SimpleLogicModule/SimpleLogicModuleFPGAImplementation/SimpleLogicModuleFPGAImplementation.runs/SimpleLogicModuleFPGAImplementationDesign_SimpleLogicModuleAXI_0_0_synth_1/vivado.jou
+#-----------------------------------------------------------
+source SimpleLogicModuleFPGAImplementationDesign_SimpleLogicModuleAXI_0_0.tcl -notrace
