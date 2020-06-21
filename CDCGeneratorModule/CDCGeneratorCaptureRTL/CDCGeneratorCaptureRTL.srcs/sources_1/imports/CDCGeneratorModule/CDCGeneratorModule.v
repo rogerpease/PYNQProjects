@@ -63,9 +63,7 @@ module CDCGeneratorModule
       generatedEnable           = 0;  
    end 
    else begin 
-      if (startNotStop_qq) begin 
-        absoluteTickCounter         <= absoluteTickCounter + 1; 
-      end
+      absoluteTickCounter         <= absoluteTickCounter + 1; 
       if (startNotStop_qq) begin 
         if (generatedDataCycleCounter == parameterCycleDataToggles) begin 
           generatedData             <= nextGeneratedDataMultiCyclePath;
@@ -74,7 +72,6 @@ module CDCGeneratorModule
         end else begin  
           generatedDataCycleCounter <= generatedDataCycleCounter + 1; 
         end 
-
         if (generatedDataCycleCounter == parameterCycleEnableTogglesHigh) begin
           generatedEnable <= 1; 
 	    end 
