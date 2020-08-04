@@ -1,0 +1,270 @@
+<h1>Building a Verilog overlay with Bidirectional pins</h1>  
+
+<h2>Background</h2> 
+
+This tutorial is targeted at users who wish to interface the PL of a Zynq 7000 and use pins as inputs, outputs or Bidirectional pins. 
+This tutorial was developed on a TUL-2 Board... Other development boards may require modifications. 
+Use caution when driving bi-directional pins as contending drivers can damage the part or the board. Also be sure you 
+select pins which can handle any external drive voltages you apply (i.e. don't put 3.3V on a 1.8V pin). 
+
+
+<h2>Approach</h2>
+
+Since this tutorial was built based on the TUL-2, the PL Overlay will contain an AXI4 peripheral containing the following:  
+
+  1. Four inputs (tied to the board buttons) 
+  2. Four outputs (tied to the board monocolor lights) 
+  3. Four BIDIs (tied to the Arduino interface) 
+
+There is a <a href=https://discuss.pynq.io/t/tutorial-creating-a-new-verilog-module-overlay/1530/2>primer on developing an AXI overlay</a> available to help understand that process.  
+
+<h2>Build AXI Peripheral</h2> 
+
+Based on the TUL-2 board assets, five 4-pin ports are added at the top level of the peripheral:
+
+<table border>
+<tr><th>Pins</th><td>Purpose</td></tr> 
+<tr><th>inPins[3:0]</th><td>Tied to the buttons</td></tr> 
+<tr><th>outPins[3:0]</th><td>Tied to the lights</td></tr> 
+<tr><th>bidiPins_i[3:0]</th><td>Tied to the bidi pins</td></tr>
+<tr><th>bidiPins_o[3:0]</th><td>Tied to the bidi pins</td></tr>
+<tr><th>bidiPins_oe[3:0]</th><td>Tied to the bidi pins</td></tr>
+</table>
+
+Registers are mapped as follows:
+   
+<table border>
+<tr><th>Offset</th><th>Register</th><th>Purpose</th></tr>
+<tr><th>0x00</th><td>slv_reg0</th><td>Outputs (lights)  </td></tr>
+<tr><th>0x04</th><td>slv_reg1</th><td>Inputs (buttons) </td></tr>
+<tr><th>0x08</th><td>slv_reg2</th><td>BIDI Enable </td></tr>
+<tr><th>0x0C</th><td>slv_reg3</th><td>BIDI Output Drive </td></tr>
+<tr><th>0x10</th><td>slv_reg4</th><td>BIDI Input Read </td></tr>
+<tr><th>0x14-18</th><td>slv_reg5-6</th><td>Reserved </td></tr>
+<tr><th>0x1C</th><td>slv_reg7</th><td>0xdecade90 (read-only to verify hookup)</td></tr> 
+</table> 
+
+
+* Create a new Vivado project and name it "SimplePinControlAXIProject". 
+  * Select RTL Project, don't include any RTL, and select your board. 
+* Create a new AXI4 Peripheral. See <a href=#Ref1>my prior tutorial</a> if you are not familar with this process. 
+  * Name: "SimplePinControlAXIIP" 
+  * Interface Type: Lite
+  * Interface Mode: Slave
+  * Data Width: 32
+  * Number of Registers: 8
+* Select "Verify Peripheral IP using AXI4 VIP" 
+
+[Picture: axi_project_bidir_first_step.png] 
+
+* Notice a schematic containing a 'master' and then the target peripheral. 
+
+[Picture: axi_module_with_vip_master.png] 
+
+The 'master' VIP (Verification IP) allows AXI transactions through API calls in Verilog tasks.  
+
+Go to the Sources window and expand out the Design Sources and Simulation Sources. 
+Right Click on 'SimplePinControlAXIIP' and select "Edit IP In Packager". It will allow edits to the IP project. 
+
+[Picture: axi_edit_ip_menu.png] 
+
+There should now have two Vivado Windows open:
+   * A window for SimplePinControlAXIIP (containing the VIP Testbench)
+   * A window for main peripheral project. 
+   
+Expand out the hierarchy for the SimplePinControlAXIIP Project. The expansion should look like: 
+  [Picture: axi_edit_simple_pin_control_axiip.png]
+
+Make the following edits to the files (sample files in links): 
+
+<a href=http://rogerpease.com/public/PYNQ/SimplePinControlAXIIP_v1_0.v>SimplePinControlAXIIP_v1_0</a>: 
+
+Add the following ports in the top-level user-ports area:
+      input inPins,  
+      output outPins,  
+      input bidiPins_i,
+      output bidiPins_o,
+      output bidiPins_oe, 
+
+And add those ports to the lower-module instantiation: 
+
+      .inPins(inPins),  
+      .outPins(outPins),  
+      .bidiPins_i(bidiPins_i),
+      .bidiPins_o(bidiPins_o),
+      .bidiPins_oe(bidiPins_oe), 
+
+
+<a href=http://rogerpease.com/public/PYNQ/SimplePinControlAXIIP_v1_0_S00_AXI_inst.v>SimplePinControlAXIIP_v1_0_S00_AXI_inst</a>: 
+
+<b>Add ports to the user ports area:</b> 
+
+      input inPins,  
+      output outPins,  
+      input bidiPins_i,
+      output bidiPins_o,
+      output bidiPins_oe, 
+
+<b>Add logic to update slv_reg1,4 and 7:</b>
+   
+ 
+<font color=#808080>
+<pre>
+            end
+          else begin
+</pre>
+</font>
+
+            slv_reg1 <= {28'h0000000, inPins[3:0]};
+            slv_reg4 <= bidiPins_i;
+            slv_reg7 <= 32'hdecade90;
+
+<font color=#808080>
+<pre>
+            if (slv_reg_wren)
+              begin
+                case ( axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] )
+                  3'h0:
+                    for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
+                      if ( S_AXI_WSTRB[byte_index] == 1 ) begin
+                        // Respective byte enables are asserted as per write strobes 
+                        // Slave register 0
+          
+</pre>
+</font> 
+          
+ Also remove the 3'h1, 3'h4 and 3'h7 cases from the case statement (and the slv_reg1,4 and 7 entries from the default statement). 
+
+
+<b>And inout/output drive logic:</b> 
+
+    // Add user logic here
+    // slv_reg0 is the value to be driven to the output pins.
+
+    assign outPins = slv_reg0;
+
+    // slv_reg2[3:0] is an output enable.
+    // slv_reg3[3:0] is desired drive value of output pins.
+
+    assign bidiPins_oe[3:0] = slv_reg2[3:0];
+    assign bidiPins_o[3:0]  = slv_reg3[3:0];
+
+    // User logic ends
+
+
+
+
+
+Run a quick simulation (just to check for syntax errors) and close the project. 
+
+Implementing a full testbench is beyond the scope of this tutorial, however this is a <A HREF=http://rogerpease.com/public/PYNQ/SimplePinControl/SimplePinControl_v0_1_tb.sv>reference</a> that I used. 
+
+<h2>Build the overlay</h2>
+
+Start a new project and click "Create Block Design". Add the SimplePinControl Module and the Zynq 7000 processing. 
+
+Inside the block design window, use the right-click menu to select "Create Port". 
+
+Create the following ports (port names must match the pin names in the constraints file):
+ 
+<table border="1">
+<tr> <th>Name</th><th>Direction</th><th>  Type    </th></tr>
+<tr><th>btn</th><td>input</td><td>Data</td><td>Bus from 3 to 0 </td></tr>
+<tr><th>led</th><td>output</td><td>Data</td><td>Bus from 3 to 0 </td></tr>
+<tr><th>bidiPins_i</th><td>input</td><td> Data</td><td>    Bus from 3 to 0 </td></tr>
+<tr><th>bidiPins_o</th><td>output</td><td>Data </td><td>   Bus from 3 to 0 </td></tr>
+<tr><th>bidiPins_oe</th><td>output</td><td>Data</td><td>    Bus from 3 to 0 </td></tr>
+</table>
+
+
+Tie btn to SimplePinControl.inPins, led to SimplePinControl.outPins, and the bidi Pins as named. 
+
+[pic axi_fpga_simple_pin_control_top_level.png] 
+
+And generate a top-level wrapper. 
+
+Inside the TOP LEVEL wrapper, remove the bidiPins entries and replace with ar[3:0]
+
+<a href=http://rogerpease.com/public/PYNQ/SimplePinControl/design_1_wrapper.v>design_1_wrapper</a>: 
+
+<pre>
+//  input [3:0]bidiPins_i;
+//  output [3:0]bidiPins_o;
+//  output [3:0]bidiPins_oe;
+  inout [3:0] ar;
+</pre>
+
+And add IO Buffers (this is one of them- add one for each of ar0-3):
+
+<pre>
+ IOBUF #(
+      .DRIVE(12), // Specify the output drive strength
+      .IBUF_LOW_PWR("TRUE"),  // Low Power - "TRUE", High Performance = "FALSE"
+      .IOSTANDARD("DEFAULT"), // Specify the I/O standard
+      .SLEW("SLOW") // Specify the output slew rate
+   ) BidiPins0_inst (
+      .O(bidiPins_i[0]),     // Buffer output
+      .IO(ar[0]),            // Buffer inout port (connect directly to top-level port)
+      .I(bidiPins_o[0]),     // Buffer input
+      .T(bidiPins_oe[0])     // 3-state enable input, high=input, low=output
+   );
+</pre> 
+
+
+Finally, take the constraints file supplied with the board and uncomment the pins necessary for inputs, outputs and bidis. 
+
+The example for Tul-2 is included <a href=github.org/rogerpease/public/PYNQ/SimplePinControl/pynq-z2.xdc>SimplePinControl Tul2 constraints</a>. 
+
+Execute 'Generate Bitstream'. 
+
+
+<h2>Testing</h2> 
+
+Copy the .bit and .hwh files from the FPGAImage project to the TUL-2 board and save them in 
+/home/xilinx/pynq/overlays/SimplePinControl/ as SimplePinControl.bit and SimplePinControl.hwh
+
+As root, start <b>python3</b> and execute:
+
+>>> from pynq import Overlay 
+>>> overlay = Overlay("SimplePinControl.bit")
+>>> simplePinControl = overlay.SimplePinControl_0 
+#
+# Check the checksum
+#
+>>> "{0:X}".format(simplePinControl.read(0x1c)) 
+'decade90' 
+#
+# Hold down buttons on your board and execute this- watch it change: 
+#
+>>> simplePinControl.read(0x4) 
+'1'
+#
+# Toggle the lights: 
+#
+>>> simplePinControl.write(0x0,0x7) 
+>>> simplePinControl.write(0x0,0x8) 
+#
+# Drive the BIDIs (you will need to use a voltmeter or some sort of light to scope these. 
+#
+>>> simplePinControl.write(0x8,0x0) 
+>>> simplePinControl.write(0xC,0xF) 
+>>> simplePinControl.read(0x10) 
+'15'
+
+# 
+# Turn off the BIDIs 
+#
+>>> simplePinControl.write(0x8,0xF) 
+#
+# You can now try applying a pullup/pulldown with a resistor to toggle the bidi pins, but BE CAREFUL as having 
+# multiple drivers on a pin can damage your board. I always use a pull resistor (at least 10K Ohm) between my voltage source 
+# and the pin. 
+#
+>>> simplePinControl.read(0x10) 
+
+References:
+
+[Ref1] https://discuss.pynq.io/t/tutorial-creating-a-new-verilog-module-overlay/1530/2 for a primer tutorial on this. 
+
+
+
