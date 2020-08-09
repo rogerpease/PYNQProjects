@@ -1,7 +1,6 @@
 #!/usr/bin/env python3 
 
 import time 
-from enum import Enum
 
 
 class DisplayDriver1602:
@@ -9,17 +8,24 @@ class DisplayDriver1602:
     def __init__(self,axiIF,Debug=0):
         self.debug = Debug 
         self.axiIF = axiIF 
+        self.ECycleWaitTime = 1000
+
+    def WaitTime(self,Waitus):
+       start = int(time.time()*1000000)
+       now = start
+       while ((now-start) < Waitus):
+         now = int(time.time()*1000000);
 
     # Ref: https://github.com/Freenove/Freenove_Ultimate_Starter_Kit_for_microbit/blob/master/Tutorial.pdf page 222 
 
     def ECycle (self,DW,RW=0,RS=0,LED=1):
                                                # D7-4       #LED      # E       #RW      #RS
        self.axiIF.InitTransaction(WriteByte = (DW << 4) + (LED<<3) + (0<<2) + (RW<<1) + (RS<<0)) # Set RW and RS
-       WaitTime(1000)
+       self.WaitTime(self.ECycleWaitTime)
        self.axiIF.InitTransaction(WriteByte = (DW << 4) + (LED<<3) + (1<<2) + (RW<<1) + (RS<<0)) # Set RW and RS
-       WaitTime(1000)
+       self.WaitTime(self.ECycleWaitTime)
        self.axiIF.InitTransaction(WriteByte = (DW << 4) + (LED<<3) + (0<<2) + (RW<<1) + (RS<<0)) # Set RW and RS
-       WaitTime(1000)
+       self.WaitTime(self.ECycleWaitTime)
 
     def Initialize(self):
       # Thanks to http://www.site2241.net/november2014.htm for de-muddying the datasheet. 
@@ -36,7 +42,7 @@ class DisplayDriver1602:
       self.ECycle(1,RW=0,RS=0)  # First Line, 1st position
       self.ECycle(1,RW=0,RS=0)
 
-    def WriteLetter(Letter):
+    def WriteLetter(self,Letter):
       upperNib = ((ord(Letter) >> 4) & 0xF)
       lowerNib = ((ord(Letter))      & 0xF)
       self.ECycle(upperNib,RW=0,RS=1) 
@@ -65,15 +71,37 @@ class DisplayDriver1602:
     #
     # my1602.WriteDisplay(["Hello","World"]) 
     #
-    def WriteDisplay(self,lines):
-      self.WriteInstruction(1)
+    def WriteDisplay(self,lines,BlankDisplay=0):
+      if BlankDisplay == 1:
+        self.WriteInstruction(1)
       lineNum = 0 
       for line in lines: 
-        SetCursor(lineNum,0)    
+        self.SetCursor(lineNum,0)    
         for character in line:
-          WriteLetter(character) 
+          self.WriteLetter(character) 
         lineNum += 1  
 
+
+
+
+    def SetRollingLines(self,lines,Offset): 
+      while True: 
+        newlines = [] 
+        maxlen = 0 
+        for line in lines: 
+           newline = line[Offset:Offset+15]
+           while len(newline) < 16:
+              newline += ' ' 
+           newlines.append(line[Offset:Offset+15])
+           if (len(line) > maxlen): 
+             maxlen = len(line) 
+
+        OffsetMax = maxlen - 16 
+        self.WriteDisplay(newlines) 
+        if (Offset+1 == OffsetMax): 
+            Offset = 0
+        else: 
+            Offset += 1
 
 
 #
@@ -88,9 +116,8 @@ def SelfTest():
    from AXII2CMaster import AXII2CMaster 
    axiIF = AXII2CMaster(overlay.axi_iic_0,0x27) 
    interface = DisplayDriver1602(axiIF,Debug=1)
-   interface.WriteDisplay(["I love","Heather Gilligan"]) 
-
-
+   interface.Initialize() 
+   interface.WriteDisplay(["Roger D. Pease","Houston Aug 2020"]) 
 
 
 if __name__ == "__main__":
