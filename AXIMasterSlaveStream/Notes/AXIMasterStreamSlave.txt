@@ -1,0 +1,278 @@
+This tutorial is aimed at Verilog users who wish to develop PL using AXI Streaming peripherals.
+This was developed on Vivado 2020.1 with a TUL-2 board but does not rely on any external hardware.  
+This assumes a familiarity with generating an overlay and AXI Peripherals.
+
+<h2>Steps:</h2> 
+
+1) Build AXI-compliant peripheral to both transmit and receive data streams.
+2) Build Overlay
+3) Configure DMA to stream data to/from PL. 
+
+
+<h2> Build AXI-compliant peripheral </h2> 
+
+Open an new project called "AXIMasterStreamSlaveMasterIP". 
+
+In previous tutorials we have instanced an AXI Lite Slave peripheral interface. 
+Now we are interfacing *three* of them. Create an AXI4 peripheral as in prior tutorials and specify the following:  
+
+  An AXI-Lite Slave Interface, 32-bit words, 8 words deep. This, as usual, lets the CPU configure the peripheral.  
+  An AXI Streaming Slave Interface, 32-bit words.  This will take in data from the DMA. 
+  An AXI Streaming Master Interface, 32-bit words. This will master data to the DMA to send back to the CPU. 
+
+You will see a peripheral top level instance with all three interfaces. 
+
+[Pic: https://rogerpease.com/public/PYNQ/AXIMasterStreamSlave/AXIMasterStreamAXIIPs.png] 
+
+The AXI Lite peripheral is reasonably complete; it only needs to be updated to route registers to our application. 
+The AXI Master and Slave peripherals are designed to stream 8 words and then stop- they will require more customization.
+
+For this tutorial we will modify all three peripherals: 
+  1. For the AXI Stream Slave (Stream coming into peripheral), we modify it to report what data was received in each of the 8 registers. 
+  1. For the AXI Stream Master (Stream leaving the peripheral), we modify it to start at a specific value (i.e. Stream in base to base+7 rather than 0 to 7). 
+  1. For the AXI-Lite Slave, 
+
+We define these control registers:
+
+<table border=1>
+<tr><th>Address Offset</th><td>Purpose</td><td>Meaning</td></tr> 
+<tr><th>0x00</th><td>Master Stream Enable </td><td>Bit0 = Start, Bit 1 = reset</tr> 
+<tr><th>0x04</th><td>Master Stream Start Offset</td><td>32-bit starting value...</td></tr> 
+<tr><th>0x08</th><td>Slave Stream Register Select</td><td>S</tr> 
+<tr><th>0x0C</th><td>Slave Stream Register Value</td></tr> 
+</table> 
+
+Now we edit the files as follows:
+<b>AXIS_Slave module:</b>
+
+For this module we'll simply add a path to read back the data streamed to it. 
+
+Add the following ports: 
+
+        input wire  [2:0] slaveStreamReadRegister;
+        output wire [31:0] slaveStreamReadValue;
+
+And add this to the generate statement for the stream_data_fifo instantiation. 
+
+        assign slaveStreamReadValue[(byte_index*8)+7 -:8] = stream_data_fifo[slaveStreamReadRegister];
+
+
+
+<b>AXIS_Master module</B>
+
+
+This module's default is to go to IDLE, transition to a Counter state where it waits for a period of time, then bursts
+8 words of data ('h00000001..'h00000008) in a SEND_STREAM state.  We'll add a mechanism to instead trigger the start of the module and reset, and 
+a mechanism to change the start value. 
+
+Add the following input ports: 
+
+    input masterStartStream,
+    input masterResetStream, 
+    input [31:0] masterStreamFirstValue, 
+
+update the State machine states as follows:
+
+Replace: 
+
+ 	parameter [1:0] IDLE = 2'b00,        // This is the initial/idle state               
+ 	                                                                                     
+ 	                INIT_COUNTER  = 2'b01, // This state initializes the counter, once   
+ 	                                // the counter reaches C_M_START_COUNT count,        
+ 	                                // the state machine changes state to SEND_STREAM     
+ 	                SEND_STREAM   = 2'b10; // In this state the                          
+
+With
+
+ 	parameter [1:0] IDLE = 2'b00,   // This is the initial/idle state               	     
+ 	                SEND_STREAM   = 2'b01, // Will be triggered by masterStartStream
+ 	                STREAM_DONE   = 2'b10; // Resting state. Reset by masterResetStream 
+
+
+Update the state machine as follows:
+
+   For the IDLE state, change:
+
+ 	            mst_exec_state  <= INIT_COUNTER;                              
+
+to:
+
+ 	        if (masterStartStream) 
+ 	            mst_exec_state  <= SEND_STREAM;                              
+
+
+Remove the INIT_COUNTER state and transitions. 
+
+For the SEND_STREAM_STATE, change the end state to STREAM_DONE rather than IDLE. 
+
+Change:
+
+ 	            mst_exec_state <= IDLE;                                       
+
+To:
+
+	            mst_exec_state <= STREAM_DONE;                                       
+
+
+And add a STREAM_DONE State. 
+
+ 	      STREAM_DONE:
+ 	        if (masterResetStream) 
+ 	            mst_exec_state <= IDLE;
+ 	        else
+ 	            mst_exec_state <= SEND_STREAM;                                
+                               
+
+Finally, update stream_data_out:  
+
+ 	          stream_data_out <= read_pointer + masterStreamFirstValue;  
+
+
+AXI Slave Lite Module 
+
+
+Add the same ports as above:
+
+     // Users to add ports here
+
+     output masterStartStream,
+     output masterResetStream,
+     output [31:0] masterStreamFirstValue,
+
+     output  [2:0] slaveStreamReadRegister,
+     input  [31:0] slaveStreamReadValue,
+
+     // User ports ends
+
+
+Update the slv_reg3 and slv_reg7 assignments in the register update section. 
+
+    slv_reg3 <= slaveStreamReadValue;
+    slv_reg7 <= 32'hdecade90;
+
+Remember to remove cases 3'h3 and 3'h7 from the case statement. 
+
+   
+
+// And place these assigns in the user logic section: 
+
+    assign masterStartStream  = slv_reg0[0];
+    assign masterResetStream  = slv_reg0[1];
+    assign masterStreamFirstValue = slv_reg1;
+    assign slaveStreamReadRegister = slv_reg2[2:0];
+
+  
+
+
+
+At the top level, Add these five interconnecting wires before the port instantiation:
+
+        wire  [2:0] slaveStreamReadRegister;
+        wire  [31:0] slaveStreamReadValue;
+
+        wire masterStartStream;
+        wire masterResetStream;
+        wire [31:0] masterStreamFirstValue;
+
+
+And wire the three AXI submodules together. 
+
+
+You will likely want to test the overlay. I've included my test routines 
+<a href=https://rogerpease.com/public/PYNQ/AXIMasterSlaveStream/>
+  
+<h2>Build Overlay</h2> 
+
+Start a project called "AXIMasterSlaveStreamFPGAImage". 
+
+Start a new Board Design and add the following IP: 
+   * ZYNQ 7000 
+   * Your AXIStreamSlave Peripheral 
+   * AXI Central Direct Memory Access.  
+
+You will need to configure your ZYNQ 7000 to have one "HP" (High performance) AXI Channel (in the PS/PL interface). This serves as the DMA's path to
+the ZYNQ to send/receive data for streaming.
+
+You will need to configure your DMA as follows:
+    * Scatter/gather off. 
+    * Write Channel off. 
+
+You can use Block and Connection automation to wire up the interfaces. 
+
+There are three interfaces to worry about here: 
+<table border=1>
+<tr><th>DMA</th><th>S_AXI_LITE</th><th>Allows the CPU to configure the DMA through Memory Mapped writes</th></tr>
+<tr><th>DMA</th><th>M_AXI_MM2S</th><td>Master MM2S -- interfaces with DDR to get data to stream to peripheral.</td></tr> 
+<tr><th>DMA</th><th>M_AXI_S2MM</th><td>Master S2MM -- interfaces with DDR to get data streamed in from peripheral back to memory </td></tr>
+</table> 
+
+
+<h2>Configure DMA to run your peripheral</h2> 
+
+
+Upload the HWH and Bit files to your ZYNQ. 
+
+
+From python, you can do the following to test the slave stream: 
+
+
+    def TestStreamSlave(input_buffer):
+
+      # Send MM2S data from CPU Memory to Stream by DMA. 
+  
+      dma.sendchannel.start()
+      dma.sendchannel.transfer(input_buffer)
+      dma.sendchannel.wait()
+      dma.sendchannel.stop()
+
+      #
+      # Query the peripheral for the data we sent it. 
+      #
+      for i in range(8):
+        ol.AXIMasterSlaveStream_0.write(0x08,i)
+        actual = ol.AXIMasterSlaveStream_0.read(0x0C)
+        if not (actual == input_buffer[i]):
+          print("Error on data from input buffer " + str(i) + \
+                " Actual " +str(actual) +                     \
+                " Expected " + str(input_buffer[i]))
+          return 0
+      return 1
+
+Then: 
+
+      input_buffer     = allocate(shape=(8,),dtype='u4')
+      input_buffer[:]  = [(x*iteration)*100 for x in range(8)]
+      TestStreamSlave(input_buffer)
+
+Likewise, to test the master out of the peripheral into our DMA:
+
+
+    def TestStreamMaster(baseval):
+
+      # Set DMA to write SS2M data to a specifc physical address 
+      output_buffer    = allocate(shape=(8,),dtype='u4')
+      output_buffer[:] = 0
+      dma.recvchannel.start()
+      dma.recvchannel.transfer(output_buffer)
+
+      # Confiugre the peripheral to send baseval to baseval + 7
+      ol.AXIMasterSlaveStream_0.write(0x00,0x02)
+      ol.AXIMasterSlaveStream_0.write(0x00,0x00)
+      ol.AXIMasterSlaveStream_0.write(0x04,baseval)
+      ol.AXIMasterSlaveStream_0.write(0x00,0x01)
+
+      dma.recvchannel.wait()
+      dma.recvchannel.stop()
+
+      # Check the data matches. 
+      for i in range(8):
+        expected = baseval + i
+        if not (output_buffer[i] == expected):
+          print("TestStreamMaster: Error on output buffer " + str(i) +      \
+              " Expected " + "{:x}".format(expected) +  \
+              " Actual " + str(output_buffer[i]))
+          return 0
+      return 1
+
+
+
