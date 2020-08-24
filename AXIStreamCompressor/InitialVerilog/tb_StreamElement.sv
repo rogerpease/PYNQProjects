@@ -27,7 +27,7 @@ module tb_StreamElement(    );
    parameter FIXEDFIELD_LENGTH_BYTES = 17; 
    parameter MAX_VARIABLEFIELD_LENGTH = 16;
    parameter MAX_STREAMELEMENT_LENGTH = MAX_VARIABLEFIELD_LENGTH + FIXEDFIELD_LENGTH_BYTES + 1;
-   parameter STREAMELEMENTCOUNT = 6; 
+   parameter NUMSTREAMELEMENTS = 4; 
 
    reg clk, reset;
 
@@ -80,17 +80,26 @@ module tb_StreamElement(    );
      streamEntryCount = 0; 
      while (streamEntryCount < 20)
      begin
+       USEStreamAcks = 0;
        if ((USEStreamReadys != 0) && (reset == 0)) 
        begin
-           for (streamElementNumber = 0; 
-                streamElementNumber < STREAMELEMENTCOUNT;
-                streamElementNumber++) 
+         streamElementNumber = 0; 
+         while (streamElementNumber < NUMSTREAMELEMENTS)
+         begin
              if (USEStreamReadys[streamElementNumber] == 1) 
              begin 
+               USEStreamAcks[streamElementNumber] = 1; 
                ReceivedStreams[streamEntryCount].StreamBeginByte   = USEStreamOuts[streamElementNumber][7:0];
-               ReceivedStreams[streamEntryCount].StreamLength      =  USEStreamByteCounts[streamElementNumber];
-              streamEntryCount ++; 
+               ReceivedStreams[streamEntryCount].StreamLength     =  USEStreamByteCounts[streamElementNumber];
+               streamEntryCount ++; 
+               streamElementNumber = NUMSTREAMELEMENTS;  
              end    
+             else 
+             begin
+               USEStreamAcks[streamElementNumber] = 0;
+               streamElementNumber ++;
+             end
+         end             
        end
        #10;
      end 
@@ -198,17 +207,17 @@ module tb_StreamElement(    );
    end 
   
   
-  parameter NUMSTREAMELEMENTS=6; 
       
   reg [NUMSTREAMELEMENTS-1:0] tokenChain;
   wire [2:0] firstByteOffset[5:0];        
   reg [NUMSTREAMELEMENTS-1:0][MAX_USE_BYTES*8-1:0] USEStreamOuts; 
   reg [NUMSTREAMELEMENTS-1:0][5:0] USEStreamByteCounts; 
   reg [NUMSTREAMELEMENTS-1:0] USEStreamReadys;
+  reg [NUMSTREAMELEMENTS-1:0] USEStreamAcks;
 
       
   genvar streamElement;
-  for (streamElement = 0; streamElement < STREAMELEMENTCOUNT; streamElement++)     
+  for (streamElement = 0; streamElement < NUMSTREAMELEMENTS; streamElement++)     
   begin 
    defparam StreamElement_inst.DATA_BUS_WIDTH_BYTES = DATA_BUS_WIDTH_BYTES;
    defparam StreamElement_inst.VARIABLEFIELD_DELIMITER='h2c;
@@ -228,13 +237,13 @@ module tb_StreamElement(    );
       .tokenIn(tokenChain[streamElement]), 
       .firstByteOffsetIn(firstByteOffset[streamElement]), 
 
-      .tokenOut(tokenChain[(streamElement+1)%6]), 
-      .firstByteOffsetOut(firstByteOffset[(streamElement+1)%6]), 
+      .tokenOut(tokenChain[(streamElement+1)%NUMSTREAMELEMENTS]), 
+      .firstByteOffsetOut(firstByteOffset[(streamElement+1)%NUMSTREAMELEMENTS]), 
 
       .USEStreamOut(USEStreamOuts[streamElement]),
       .USEStreamByteLengthOut(USEStreamByteCounts[streamElement]),
-      .USEStreamReadyOut(USEStreamReadys[streamElement])
-
+      .USEStreamReadyOut(USEStreamReadys[streamElement]),
+      .USEStreamReadyAck(USEStreamAcks[streamElement])
    ); 
    end
    
