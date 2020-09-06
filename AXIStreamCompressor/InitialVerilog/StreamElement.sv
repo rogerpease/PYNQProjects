@@ -2,6 +2,7 @@
 
 module StreamElement
   #(
+    // DATA_BUS_WIDTH must not be larger than (FIXEDFIELD_LENGTH_BYTES + 1)
     parameter DATA_BUS_WIDTH_BYTES=8, // Must be 2**n 
     parameter MAX_VARIABLEFIELD_LENGTH=16,
     parameter VARIABLEFIELD_DELIMITER=8'h2c,
@@ -25,7 +26,8 @@ module StreamElement
 
       output wire [(MAX_USE_BYTES*8)-1:0]       USEStreamOut,
       output reg  [$clog2(MAX_USE_BYTES)-1:0]   USEStreamByteLengthOut,
-      output reg                                USEStreamReadyOut
+      output reg                                USEStreamReadyOut,
+      input  reg                                USEStreamReadyAck
    );  
    
    
@@ -139,7 +141,7 @@ module StreamElement
           end
         else 
       // If we are in Empty state, always copy in the latest data to the first register. No reason not to. 
-          if (USEStreamState == USEStreamState_Empty) 
+          if ((USEStreamState == USEStreamState_Empty) && (USEStreamReadyOut == 0))
           begin 
             if (latchDataToSecondBank)
             begin
@@ -168,17 +170,27 @@ module StreamElement
               USEStreamByteFifo[byteNum] <= data_in[(byteNum%DATA_BUS_WIDTH_BYTES)*8+7-:8];  
             end 
           end 
-          else if ((USEStreamState == USEStreamState_Shifting) && (USEStartByte > 0) )
-              USEStreamByteFifo[byteNum] <= USEStreamByteFifo[(byteNum+1) % USESTREAMBYTES_BYTE_DEPTH]; 
+          else 
+            if (USEStreamState == USEStreamState_Shifting)
+            begin
+              if (USEStartByte >= 4) 
+                USEStreamByteFifo[byteNum] <= USEStreamByteFifo[(byteNum+4) % USESTREAMBYTES_BYTE_DEPTH]; 
+              else
+              if (USEStartByte[1] == 1) 
+                USEStreamByteFifo[byteNum] <= USEStreamByteFifo[(byteNum+2) % USESTREAMBYTES_BYTE_DEPTH]; 
+              else
+              if (USEStartByte[0] == 1) 
+                USEStreamByteFifo[byteNum] <= USEStreamByteFifo[(byteNum+1) % USESTREAMBYTES_BYTE_DEPTH]; 
+            end
         end
     end  
  
     wire latchData;
     assign latchData = (token) && (dataValid); 
- //    ((USEStreamByteLengthOut == MAX_USE_BYTES) || 
- //     (USECurrentBank*8 < USEStreamByteLengthOut));
+
 
     // Now for the specific controller. 
+    reg USEStreamReady; 
 
     always @(posedge clk) 
     begin 
@@ -187,13 +199,23 @@ module StreamElement
         USEStreamState     <= USEStreamState_Empty; 
         USEStartByte       <= 0; 
         USECurrentBank     <= 0; 
-        USEStreamReadyOut  <= 0;
+        USEStreamReady     <= 0;
         firstByteOffsetOut <= 0;
       end
       else 
       begin    
-        USEStreamReadyOut <= 0; 
+        if (USEStreamReadyOut == 1)
+          begin 
+            if (USEStreamReadyAck == 1) 
+              USEStreamReadyOut <= 0; 
+            else 
+              USEStreamReadyOut <= 1; 
+         end
+       else 
+          USEStreamReadyOut <= 0; 
+        
         passToken <= 0; 
+        
        
         if (USEStreamState == USEStreamState_Empty) 
         begin
@@ -230,22 +252,26 @@ module StreamElement
         begin 
           if (USEStreamState == USEStreamState_Shifting) 
           begin
-             if (USEStartByte > 0) 
+             if (USEStartByte >= 4) 
              begin 
-                USEStartByte <= USEStartByte - 1; 
-                // Do nothing. Data mux will handle the shift. 
+                USEStartByte      <= USEStartByte - 4; 
              end
              else
+             if (USEStartByte[1] == 1) 
+                USEStartByte      <= USEStartByte - 2;
+             else
+             if (USEStartByte[0] == 1) 
+                USEStartByte      <= USEStartByte - 1;
+             else             
              begin 
-               USEStreamState    <= USEStreamState_Empty;
-               USEStreamReadyOut <= 1; 
-               USECurrentBank    <= 0; 
+               USEStreamState     <= USEStreamState_Empty;
+               USEStreamReadyOut  <= 1; 
+               USECurrentBank     <= 0; 
              end
           end
         end 
       end
     end
-    
     
     
     
