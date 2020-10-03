@@ -31,8 +31,8 @@ module tb_StreamElement(    );
 
    reg clk, reset;
 
-   reg [(DATA_BUS_WIDTH_BYTES*8-1):0] dataIn;
-   reg dataInValid;
+   reg [(DATA_BUS_WIDTH_BYTES-1):0][7:0] dataIn;
+   reg                                   dataInValid;
          
    always begin clk = 1; #5; clk = 0; #5;    end
    
@@ -49,6 +49,8 @@ module tb_StreamElement(    );
    TestStreamInfoType ReceivedStreams[20];
    TestStreamInfoType SortedStreams[20];
 
+   reg [DATA_BUS_WIDTH_BYTES-1:0][7:0] dataIn;
+   reg                                 dataInValid;
         
    task SendStreamData;
      integer cycleNum, byteNum,dataIndex;
@@ -58,83 +60,109 @@ module tb_StreamElement(    );
      dataIndex = 0; 
      for (cycleNum = 0; cycleNum < TestStreamDataLength;cycleNum = cycleNum + DATA_BUS_WIDTH_BYTES)
      begin
+       $display("Sending Stream Data Cycle ",cycleNum); 
        for (byteNum = 0; byteNum < DATA_BUS_WIDTH_BYTES; byteNum = byteNum + 1) 
        begin
-         dataIn[(byteNum*8+7)-:8] = TestStreamData[dataIndex];
-         dataIndex = dataIndex + 1;
+         dataIn[byteNum] = TestStreamData[dataIndex++];
        end          
+       $display("Sent data",$time); 
        #10;
+       $display("Relooping"); 
      end
      dataInValid = 0;  
    end   
    endtask
    
+   parameter NUM_TESTSTREAMELEMENTS = 200; 
+
+   //
+   // Record the data we received from the unit 
+   //
+   reg [(MAX_STREAMELEMENT_LENGTH * NUM_TESTSTREAMELEMENTS)-1:0][7:0]   CompressedDataReceived; 
+   reg [$clog2(MAX_STREAMELEMENT_LENGTH * NUM_TESTSTREAMELEMENTS)-1:0]  CompressedDataReceivedIndex; 
+
+   integer CompressedStreamElementsFound = 0;       
+   integer CompressedStreamElementsReceived[20] = {0,0,0,0,0,
+                                                   0,0,0,0,0,
+                                                   0,0,0,0,0,
+                                                   0,0,0,0,0}; 
    
-   // capture all streams as they come in. 
+   
+   task EvaluateCompressedStreamData;
+     integer compressedDataReceivedIndex;  
+     integer startStreamIndex;  
+     integer endStreamIndex;  
+   begin 
+     compressedDataReceivedIndex = 0; 
+     CompressedStreamElementsFound = 0; 
+     
+     while ((compressedDataReceivedIndex < CompressedDataReceivedIndex)) 
+     begin 
+       startStreamIndex = compressedDataReceivedIndex;   
+       // Find Delimiter 
+       while ((compressedDataReceivedIndex < CompressedDataReceivedIndex) &&
+            (CompressedDataReceived[compressedDataReceivedIndex] != 'h2c)) 
+         compressedDataReceivedIndex ++;   
+       // Find End 
+       compressedDataReceivedIndex += FIXEDFIELD_LENGTH_BYTES;   
+       if (compressedDataReceivedIndex <= CompressedDataReceivedIndex) 
+       begin   
+         CompressedStreamElementsReceived[CompressedStreamElementsFound] = compressedDataReceivedIndex - startStreamIndex - 1; 
+         CompressedStreamElementsFound ++;  
+       end
+     end  
+   end 
+   endtask
+
+   //
+   // Capture all Stream Elements as they come in. 
+   //
+   
+
+   integer numStreamsReceived = 0; 
+
    task MonitorStreamOut;
      integer streamElementNumber,streamEntryCount;
      integer sortedStreamIndex; 
+     integer dataByte; 
+     
    begin
      #1;
-     streamElementNumber = 0; 
+     CompressedDataReceivedIndex = 0; 
+     //
+     // Receive data back from the 
+     //
+     while (numStreamsReceived < 20) 
+     begin 
+       EvaluateCompressedStreamData();
+     end   
      streamEntryCount = 0; 
-     while (streamEntryCount < 20)
-     begin
-       USEStreamAcks = 0;
-       if ((USEStreamReadys != 0) && (reset == 0)) 
-       begin
-         streamElementNumber = 0; 
-         while (streamElementNumber < NUMSTREAMELEMENTS)
-         begin
-             if (USEStreamReadys[streamElementNumber] == 1) 
-             begin 
-               USEStreamAcks[streamElementNumber] = 1; 
-               ReceivedStreams[streamEntryCount].StreamBeginByte   = USEStreamOuts[streamElementNumber][7:0];
-               ReceivedStreams[streamEntryCount].StreamLength     =  USEStreamByteCounts[streamElementNumber];
-               streamEntryCount ++; 
-               streamElementNumber = NUMSTREAMELEMENTS;  
-             end    
-             else 
-             begin
-               USEStreamAcks[streamElementNumber] = 0;
-               streamElementNumber ++;
-             end
-         end             
-       end
-       #10;
-     end 
-     streamEntryCount = 0; 
-     //Now, Sort the streams by Begin Byte. 
-     while (streamEntryCount < 20) 
-     begin
-         sortedStreamIndex = ReceivedStreams[streamEntryCount].StreamBeginByte;
-         SortedStreams[sortedStreamIndex].StreamBeginByte = sortedStreamIndex;
-         SortedStreams[sortedStreamIndex].StreamLength = ReceivedStreams[streamEntryCount].StreamLength;
-         streamEntryCount ++; 
-     end
-     // And make sure everything matches. 
-
-     streamEntryCount = 0; 
-     //Now, Sort the streams by Begin Byte. 
-     while (streamEntryCount < 20) 
-     begin
-       assert(SortedStreams[streamEntryCount].StreamLength == TestStreams[streamEntryCount].StreamLength)
-       else 
-       begin
-         $display("Stream ",streamEntryCount, " expected length ", TestStreams[streamEntryCount].StreamLength,
-                   " actual ",SortedStreams[sortedStreamIndex].StreamLength);
-         $stop();         
-       end
-       streamEntryCount ++; 
-     end
+     // We don't guarantee In-order delivery of streams in this case. 
+      
+ 
      
      $finish("Received all streams Properly");
    end   
    endtask
+
+
+   ///////////////////////////////////////////////
+   //
+   //   
+   //
+   //
    
-   initial begin
-     @(negedge reset);
-     MonitorStreamOut();
+   always @(posedge clk) 
+   begin
+     integer dataByte;
+
+     if ((reset == 0) && (dataOutValid)) 
+     begin
+       for (dataByte = 0; dataByte < DATA_BUS_WIDTH_BYTES; dataByte++) 
+       begin
+         CompressedDataReceived[CompressedDataReceivedIndex++] = dataOut[dataByte]; 
+       end 
+     end
    end 
    
    initial   
@@ -148,6 +176,7 @@ module tb_StreamElement(    );
        for (streamIndex = 0; streamIndex < 20; streamIndex = streamIndex + 1) 
        begin    
           automatic integer streamLength = streamLengths[streamIndex];
+          automatic integer firstFixedByteOffset = streamLength-FIXEDFIELD_LENGTH_BYTES;
           automatic integer streamByteNumber = 0; 
           automatic integer isFixedArea = 0;
 
@@ -169,7 +198,7 @@ module tb_StreamElement(    );
           for (streamByteNumber = 0; streamByteNumber < streamLength;streamByteNumber++) 
           begin
              // Set the delimiter
-             if (streamByteNumber == streamLength-FIXEDFIELD_LENGTH_BYTES-1 )
+             if (streamByteNumber == firstFixedByteOffset-1)
              begin 
                TestStreamData[dataIndex] = 'h2C;
                isFixedArea               = 1; 
@@ -182,7 +211,7 @@ module tb_StreamElement(    );
                  if (streamByteNumber == (streamLength - 1))
                    TestStreamData[dataIndex] = 8'h2c;
                  else 
-                   TestStreamData[dataIndex] = 8'hB0 + streamByteNumber;
+                   TestStreamData[dataIndex] = 8'hB0 + streamByteNumber-firstFixedByteOffset;
                end
                else
                if (streamByteNumber == 0) // Put the Stream Index as the first byte. 
@@ -199,54 +228,42 @@ module tb_StreamElement(    );
        dataInValid = 0; 
        TestStreamDataLength = dataIndex;
        reset = 1;
+       $display("Raised Reset"); 
        #200;
+       $display("Dropping Reset"); 
        reset = 0;
        #10;
        #1;
        SendStreamData();   
    end 
+   
+   
+  wire [DATA_BUS_WIDTH_BYTES-1:0][7:0] dataOut;
+  wire dataOutValid;
+
   
   
-      
-  reg [NUMSTREAMELEMENTS-1:0] tokenChain;
-  wire [2:0] firstByteOffset[5:0];        
-  reg [NUMSTREAMELEMENTS-1:0][MAX_USE_BYTES*8-1:0] USEStreamOuts; 
-  reg [NUMSTREAMELEMENTS-1:0][5:0] USEStreamByteCounts; 
-  reg [NUMSTREAMELEMENTS-1:0] USEStreamReadys;
-  reg [NUMSTREAMELEMENTS-1:0] USEStreamAcks;
-
-      
-  genvar streamElement;
-  for (streamElement = 0; streamElement < NUMSTREAMELEMENTS; streamElement++)     
-  begin 
-   defparam StreamElement_inst.DATA_BUS_WIDTH_BYTES = DATA_BUS_WIDTH_BYTES;
-   defparam StreamElement_inst.VARIABLEFIELD_DELIMITER='h2c;
-   defparam StreamElement_inst.MY_ID=streamElement;    // Do I hold the token on reset or does someone else? 
-   defparam StreamElement_inst.RESET_TOKEN_HOLDER_ID=0;    // Do I hold the token on reset or does someone else? 
-   defparam StreamElement_inst.FIXEDFIELD_LENGTH_BYTES=FIXEDFIELD_LENGTH_BYTES;
-   defparam StreamElement_inst.MAX_VARIABLEFIELD_LENGTH=MAX_VARIABLEFIELD_LENGTH;
-
-   StreamElement StreamElement_inst 
-   ( 
-      .clk(clk), 
-      .reset(reset), 
-
-      .dataIn (dataIn),
-      .dataInValid(dataInValid),  
-        
-      .tokenIn(tokenChain[streamElement]), 
-      .firstByteOffsetIn(firstByteOffset[streamElement]), 
-
-      .tokenOut(tokenChain[(streamElement+1)%NUMSTREAMELEMENTS]), 
-      .firstByteOffsetOut(firstByteOffset[(streamElement+1)%NUMSTREAMELEMENTS]), 
-
-      .USEStreamOut(USEStreamOuts[streamElement]),
-      .USEStreamByteLengthOut(USEStreamByteCounts[streamElement]),
-      .USEStreamReadyOut(USEStreamReadys[streamElement]),
-      .USEStreamReadyAck(USEStreamAcks[streamElement])
-   ); 
-   end
-   
-   
-   
+   AXIStreamCompressor  
+  #(
+   .DATA_BUS_WIDTH_BYTES     (8),
+   .NUM_STREAM_ELEMENTS      (4),
+   .NUM_COMPRESSION_ELEMENTS (1),
+   .MAX_VARIABLEFIELD_LENGTH (16),
+   .FIXEDFIELD_LENGTH_BYTES  (11),
+   .COMPRESSIONALGORITHM     (0),
+   .FIFO_MAX_INGEST_BYTES    (16),
+   .MAX_UNCOMPRESSED_BYTES   (34),
+   .MAX_COMPRESSED_BYTES     (34),
+   .FIFO_DEPTH               (64)
+  )
+  AXIStreamCompressor_inst
+  (
+      .clk(clk),
+      .reset(reset),
+      .dataIn(dataIn),
+      .dataInValid(dataInValid),
+      .dataOut(dataOut),
+      .dataOutValid(dataOutValid)
+  );
+  
 endmodule
