@@ -13,6 +13,8 @@ export LD_LIBRARY_PATH=/tools/Xilinx/.xinstall/Vivado_2020.2/lib/lnx64.o:/tools/
 
 export VIVADO_BIN=/tools/Xilinx/Vivado/2020.2/bin
 
+rm -rf FPGAImage 
+mkdir FPGAImage 
 $VIVADO_BIN/vivado -mode batch -source scripts/makeimage.tcl
 echo "Run the following: "
 echo "   ssh xilinx@192.168.1.128  "
