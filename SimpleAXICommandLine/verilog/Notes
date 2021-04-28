@@ -1,0 +1,3 @@
+
+
+* Keep the module seprate from the testbench. This helps the packaging flow figure out the hierarchy (you could probably also set the design top).  
