@@ -56,7 +56,7 @@ $VIVADO_BIN/xvlog -work xil_defaultlib -L uva -L axi_vip_v1_1_8 -L xilinx_vip  v
 
 $VIVADO_BIN/xelab -wto fa0545d4865e4787811138bb88188e54 --incr --debug typical --relax --mt 8 -L xil_defaultlib -L axi_infrastructure_v1_1_0 -L axi_vip_v1_1_8 -L uvm -L xilinx_vip -L unisims_ver -L unimacro_ver -L secureip -L xpm --snapshot myip_v1_0_tb_behav xil_defaultlib.myip_v1_0_tb xil_defaultlib.glbl -log elaborate.log
 
-$VIVADO_BIN/xsim myip_v1_0_tb_behav --tclbatch simulation.tcl
+$VIVADO_BIN/xsim myip_v1_0_tb_behav --tclbatch scripts/simulation.tcl
 
 
 echo "Must show PTGEN_TEST: PASSED!"
