@@ -14,14 +14,14 @@ export LD_LIBRARY_PATH=/tools/Xilinx/.xinstall/Vivado_2020.2/lib/lnx64.o:/tools/
 export VIVADO_BIN=/tools/Xilinx/Vivado/2020.2/bin
 
 
+
 #
 # Make sure to use 
 #    "-L uva -L axi_vip_v1_1_8 -L xilinx_vip" for all the axi libraries and 
 #    --sv for systemverilog
 #
-# Don't confuse 
-#
 
+rm -rf xsim.dir
 
 $VIVADO_BIN/xvlog -work xil_defaultlib \
    --include "./verilog/include"  \

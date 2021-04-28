@@ -279,9 +279,10 @@
 	      slv_reg28 <= 0;
 	      slv_reg29 <= 0;
 	      slv_reg30 <= 0;
-	      slv_reg31 <= 0;
+	      slv_reg31 <= 32'hdecade90;
 	    end 
 	  else begin
+	    slv_reg31 <= 32'hdecade90;
 	    if (slv_reg_wren)
 	      begin
 	        case ( axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] )
@@ -502,13 +503,6 @@
 	                // Slave register 30
 	                slv_reg30[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 	              end  
-	          5'h1F:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 31
-	                slv_reg31[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
 	          default : begin
 	                      slv_reg0 <= slv_reg0;
 	                      slv_reg1 <= slv_reg1;
@@ -541,7 +535,6 @@
 	                      slv_reg28 <= slv_reg28;
 	                      slv_reg29 <= slv_reg29;
 	                      slv_reg30 <= slv_reg30;
-	                      slv_reg31 <= slv_reg31;
 	                    end
 	        endcase
 	      end

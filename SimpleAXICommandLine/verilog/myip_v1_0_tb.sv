@@ -33,7 +33,7 @@ xil_axi_uint                           passthrough_agent_verbosity = 0;
 bit                                     clock;
 bit                                     reset;
 integer result_slave;  
-bit [31:0] S00_AXI_test_data[3:0]; 
+bit [31:0] S00_AXI_test_data[31:0]; 
  localparam LC_AXI_BURST_LENGTH = 8; 
  localparam LC_AXI_DATA_WIDTH = 32; 
 task automatic COMPARE_DATA; 
@@ -171,7 +171,7 @@ begin
      mtestProtectionType = 0;  
      mtestRegion = 0; 
      mtestQOS = 0; 
- for(int i = 0; i < 4;i++) begin 
+ for(int i = 0; i < 32;i++) begin 
    mst_agent_0.AXI4LITE_READ_BURST( 
         mtestADDR, 
         mtestProtectionType, 
@@ -179,8 +179,12 @@ begin
         mtestRresp 
       ); 
    mtestADDR = mtestADDR + 64'h4; 
+   S00_AXI_test_data[31] <= 64'hdecade90;
    COMPARE_DATA(S00_AXI_test_data[i],mtestRDataL); 
  end 
+
+
+
      $display("Sequential read transfers example similar to  AXI BFM READ_BURST method completes"); 
      $display("Sequential read transfers example similar to  AXI VIP READ_BURST method completes"); 
      $display("---------------------------------------------------------"); 
