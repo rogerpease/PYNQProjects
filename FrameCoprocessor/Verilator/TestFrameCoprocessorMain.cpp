@@ -11,59 +11,20 @@
 
 // Include common routines
 #include <verilated.h>
-#include <VFrameCoprocessor.h>
+#include <VFrameCoprocessorMain.h>
 
 
 #define PASSORDIE(x,y) { if (x) { printf("PASS Step %s\n",y); } else {printf("Failed step %s",y);  exit(1); } }
 
-void ToggleClock (const std::unique_ptr<VFrameCoprocessor> & top) 
+void ToggleClock (const std::unique_ptr<VFrameCoprocessorMain> & top) 
 { 
    top->masterClock = 1; Verilated::timeInc(5); top->eval(); 
    top->masterClock = 0; Verilated::timeInc(5); top->eval();
 } 
 
 
-bool CheckRegistersProgrammed(const std::unique_ptr<VFrameCoprocessor> & top) 
-{
 
-  bool result = 1; 
-
-  top->configRegisterWriteEnable = 1; 
-  for (int reg = 0; reg < 32; reg++) 
-  {
-    top->configRegisterAddress = reg; 
-    top->configRegisterDataIn  = 0x01010101*reg; 
-    ToggleClock(top);  
-  } 
-  top->configRegisterWriteEnable = 0; 
-    
-  for (int reg = 0; reg < 32; reg++) 
-  {
-
-    top->configRegisterAddress = reg; 
-    ToggleClock(top);  
-    if (top->configRegisterDataOut != 0x01010101*reg) { printf("CheckRegistersProgrammed: %d\n", top->configRegisterDataOut); result = 0; }  
- 
-  }
-  return result; 
-
-}
-
-
-bool CheckRegistersReset(const std::unique_ptr<VFrameCoprocessor>  & top) 
-{
-
-  for (int reg = 0; reg < 32; reg++) 
-  {
-    top->configRegisterAddress = reg; 
-    ToggleClock(top);  
-    assert(top->configRegisterDataOut == 0); 
-  } 
-  return 1; 
-    
-}
-
-void Reset(const std::unique_ptr<VFrameCoprocessor> & top) 
+void Reset(const std::unique_ptr<VFrameCoprocessorMain> & top) 
 {
   ToggleClock(top);  
   top->reset = 1; 
@@ -89,7 +50,7 @@ int main(int argc, char **argv)
 {
 
   const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
-  const std::unique_ptr<VFrameCoprocessor> top{new VFrameCoprocessor{contextp.get(), "VFrameCoprocessor"}};
+  const std::unique_ptr<VFrameCoprocessorMain> top{new VFrameCoprocessorMain{contextp.get(), "VFrameCoprocessorMain"}};
 
   Verilated::traceEverOn(true);
   Verilated::commandArgs(argc,argv); 
@@ -102,10 +63,6 @@ int main(int argc, char **argv)
   StreamOutModule.periodicStallDenominator = 5; 
 
   Reset(top);
-  PASSORDIE(CheckRegistersReset(top)     ,"Check Registers were Reset"); 
-  PASSORDIE(CheckRegistersProgrammed(top),"Check Registers were programmed"); 
-  Reset(top);
-  PASSORDIE(CheckRegistersReset(top)     ,"Check Registers were Reset second time"); 
 
   while (!StreamInModule.done) 
   { 
