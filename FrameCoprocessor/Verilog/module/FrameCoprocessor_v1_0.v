@@ -103,7 +103,6 @@
     // Add user logic here
 
 
-    assign streamdataout_tstrb = 4'b1111;
     FrameCoprocessor FrameCoprocessor_inst 
     (
 
