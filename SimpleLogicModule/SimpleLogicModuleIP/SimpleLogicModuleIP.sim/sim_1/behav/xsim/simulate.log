@@ -1,4 +1,0 @@
-Vivado Simulator 2019.2
-Time resolution is 1 ps
-$stop called at time : 5120 ns : File "/home/rpease/PYNQProjects/SimpleLogicModule/SimpleLogicModuleIP/SimpleLogicModuleIP.srcs/sources_1/imports/SimpleLogicModuleIP/tb_SimpleLogicModuleIP.v" Line 43
-Memory in use : 125696 KB (peak memory: 183228 KB)     CPU usage : 50 ms

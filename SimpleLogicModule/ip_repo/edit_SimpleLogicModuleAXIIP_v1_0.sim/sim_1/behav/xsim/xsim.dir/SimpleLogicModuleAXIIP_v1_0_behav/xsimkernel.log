@@ -1,4 +1,0 @@
-Running: xsim.dir/SimpleLogicModuleAXIIP_v1_0_behav/xsimk -simmode gui -wdb SimpleLogicModuleAXIIP_v1_0_behav.wdb -simrunnum 0 -socket 50247
-Design successfully loaded
-Design Loading Memory Usage: 43996 KB (Peak: 44116 KB)
-Design Loading CPU Usage: 20 ms
