@@ -9,32 +9,25 @@ import json
 # Find a 
 #
 configFileName = "config.json"
-tries = 0 
 
-configDirectory = "./"
-while tries < 6 and not os.path.exists(configDirectory + configFileName):
-   configDirectory = "../"+configDirectory
-   tries = tries + 1
+try:
+  with open(configFileName,"r") as fp:
+    config = json.load(fp)
+except:
+  exit("Could not open config.json") 
 
-if (tries == 6):
-  print ("Could not find configfile")
-  sys.exit();
-
-with open(configFileName,"r") as fp:
-  config = json.load(fp)
-
-
+configDirectory = "."
   
 # This is to get the directory that the program  
 # is currently running in. 
-FPGAFabricPath    = config["FPGAImagePath"]
+FPGAImagePath    = config["FPGAImagePath"]
 PYNQBitstreamName = config["BitStreamName"] 
 
-if not os.path.exists(configDirectory+FPGAFabricPath): 
-  print ("Could not find FPGA Fabric Path " + configDirectory+FPGAFabricPath) 
+if not os.path.exists(FPGAImagePath): 
+  print ("Could not find FPGA Image Path " + FPGAImagePath) 
 
 
-dir_path = os.path.realpath(FPGAFabricPath)
+dir_path = os.path.realpath(FPGAImagePath)
 print ("Dirname: ",dir_path);
   
 for root, dirs, files in os.walk(dir_path): 
@@ -44,8 +37,13 @@ for root, dirs, files in os.walk(dir_path):
         if file.endswith('.hwh'): 
             hwhsource = root+'/'+str(file) 
 
-if not os.path.exists(configDirectory+"images"):
-  os.system("mkdir "+configDirectory+"images") 
+try:
+  hwhsource
+except:
+  print("Could not find HWH file") 
+
+if not os.path.exists("images"):
+  os.system("mkdir images") 
 
 hostip = "192.168.1.128"
 commands = []
