@@ -30,16 +30,6 @@ VIVADO_BIN = "/tools/Xilinx/Vivado/2020.2/bin/"
 
 
 
-def GetVandSVFiles():
-  VerilogFiles = []
-  SVFiles      = []
-  for subdir in ["module","tb"]:
-    for file in os.listdir("Verilog/"+subdir):
-      if file.endswith(".v"):
-          VerilogFiles.append(os.path.join("Verilog/"+subdir, file))
-      if file.endswith(".sv"):
-          SVFiles.append(os.path.join("Verilog/"+subdir, file))
-  return VerilogFiles,SVFiles 
 
 
 def Run(commandString):
@@ -92,6 +82,8 @@ if __name__ == "__main__":
 
   try:
     TopLevelTB = config["TopLevelTB"] 
+    config["VerilogFiles"]  
+    config["SVFiles"]  
   except KeyError:
     print("config TopLevelTB not found")
     exit() 
@@ -106,11 +98,8 @@ if __name__ == "__main__":
 
 
   os.system("rm -rf xsim.dir") 
-  VerilogFiles,SVFiles = GetVandSVFiles()
-  print ("\n".join(VerilogFiles)) 
-  print ("\n".join(SVFiles)) 
-  RunVerilogCompile(VerilogFiles)
-  RunSVCompile(SVFiles)
+  RunVerilogCompile(config["VerilogFiles"])
+  RunSVCompile(config["SVFiles"])
   print (TopLevelTB,Snapshot) 
   RunElab(TopLevelTB,Snapshot) 
   RunSim(Snapshot) 
