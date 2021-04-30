@@ -1,2 +1,22 @@
-{ "FPGAImagePath": "FPGAImage", "BitStreamName": "AXIMasterSlaveStream","TopLevelTB": "AXIMasterSlaveStreamIP_v1_0_tb"  }
+{ "FPGAImagePath": "FPGAImage", "BitStreamName": "AXIMasterSlaveStream","TopLevelTB": "AXIMasterSlaveStreamIP_v1_0_tb",
+
+"VerilogFiles": 
+["Verilog/module/AXIMasterSlaveStreamIP_v1_0_M00_AXIS.v",
+"Verilog/module/AXIMasterSlaveStreamIP_v1_0_S00_AXIS.v",
+"Verilog/module/AXIMasterSlaveStreamIP_v1_0_S00_AXI.v",
+"Verilog/module/AXIMasterSlaveStreamIP_v1_0.v"],
+
+"SVFiles": 
+[
+"Verilog/tb/AXIMasterSlaveStreamIP_v1_0_bfm_1_AXIMasterSlaveStreamIP_0_0.v",
+"Verilog/tb/AXIMasterSlaveStreamIP_v1_0_bfm_1_master_0_0_pkg.sv",
+"Verilog/tb/AXIMasterSlaveStreamIP_v1_0_bfm_1_master_0_0.sv",
+"Verilog/tb/AXIMasterSlaveStreamIP_v1_0_bfm_1.v",
+"Verilog/tb/AXIMasterSlaveStreamIP_v1_0_bfm_1_wrapper.v",
+"Verilog/tb/AXIMasterSlaveStreamIP_v1_0_tb.sv",
+"Verilog/tb/glbl.v"
+]
+
+
+  }
 
