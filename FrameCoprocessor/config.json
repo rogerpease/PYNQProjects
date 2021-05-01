@@ -1,0 +1,17 @@
+{ "FPGAImagePath": "FPGAImage", "BitStreamName": "FrameCoprocessor","TopLevelTB": "FrameCoprocessor_v1_0_tb",
+"VerilogFiles":
+["Verilog/module/FrameCoprocessor_v1_0.v",
+ "Verilog/module/FrameCoprocessor_v1_0_Control.v",
+ "Verilog/tb/FrameCoprocessor_v1_0_bfm_1_FrameCoprocessor_0_0.v",
+ "Verilog/tb/FrameCoprocessor_v1_0_bfm_1_wrapper.v",
+ "Verilog/tb/FrameCoprocessor_v1_0_bfm_1.v",
+  "Verilog/tb/glbl.v"],
+"SVFiles": [
+"Verilog/tb/FrameCoprocessor_v1_0_bfm_1_master_0_0_pkg.sv",
+"Verilog/module/FrameCoprocessorMain.sv",
+"Verilog/tb/FrameCoprocessor_v1_0_tb.sv",
+"Verilog/tb/FrameCoprocessor_v1_0_bfm_1_master_0_0.sv"
+]
+
+}
+
