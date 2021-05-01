@@ -70,13 +70,28 @@
 	);
 
        wire[31:0] configRegister0; 
+       wire[31:0] configRegister1; 
+       wire[31:0] LastStatus; 
+       wire[31:0] FrameBufferStatus; 
+       wire[31:0] FrameBuffer0; 
+       wire[31:0] FrameBuffer1; 
+       wire[31:0] FrameBuffer2; 
+       wire[31:0] FrameBuffer3; 
 
 // Instantiation of Axi Bus Interface Control
 	FrameCoprocessor_v1_0_Control # ( 
 		.C_S_AXI_DATA_WIDTH(C_Control_DATA_WIDTH),
 		.C_S_AXI_ADDR_WIDTH(C_Control_ADDR_WIDTH)
 	) FrameCoprocessor_v1_0_Control_inst (
-		.configRegister0(configRegister0),
+                .configRegister0(configRegister0),
+                .configRegister1(configRegister1),
+                .LastStatus(LastStatus),
+                .FrameBufferStatus(FrameBufferStatus),
+                .FrameBuffer0(FrameBuffer0),
+                .FrameBuffer1(FrameBuffer1),
+                .FrameBuffer2(FrameBuffer2),
+                .FrameBuffer3(FrameBuffer3),
+
 		.S_AXI_ACLK(control_aclk),
 		.S_AXI_ARESETN(control_aresetn),
 		.S_AXI_AWADDR(control_awaddr),
@@ -102,27 +117,35 @@
 
     // Add user logic here
 
-
-    FrameCoprocessor FrameCoprocessor_inst 
+    FrameCoprocessorMain FrameCoprocessorMain_inst 
     (
 
-    .dataIn(streamdatain_tdata),
-    .dataInClock(streamdatain_aclk),
-    .dataInResetN(streamdatain_aresetn),
-    .dataInTValid(streamdatain_tvalid),
-    .dataInTReady(streamdatain_tready),
-    .dataInTLast(streamdatain_tlast),
-    .dataInTStrb(streamdataout_tstrb),
+    /* verilator lint_off UNUSED */
+    .configRegister0(configRegister0),
+    /* verilator lint_on UNUSED */
+    .LastStatus(LastStatus),
+    .FrameBufferStatus(FrameBufferStatus),
+    .FrameBuffer0(FrameBuffer0),
+    .FrameBuffer1(FrameBuffer1),
+    .FrameBuffer2(FrameBuffer2),
+    .FrameBuffer3(FrameBuffer3),
 
-    .dataOut(streamdataout_tdata),
-    .dataOutClock(streamdataout_aclk),
+    .dataIn       (streamdatain_tdata),
+    .dataInClock  (streamdatain_aclk),
+    .dataInResetN (streamdatain_aresetn),
+    .dataInTValid (streamdatain_tvalid),
+    .dataInTReady (streamdatain_tready),
+    .dataInTLast  (streamdatain_tlast),
+    .dataInTStrb  (streamdatain_tstrb),
+
+    .dataOut      (streamdataout_tdata),
+    .dataOutClock (streamdataout_aclk),
     .dataOutResetN(streamdataout_aresetn),
     .dataOutTValid(streamdataout_tvalid),
     .dataOutTReady(streamdataout_tready),
-    .dataOutTLast(streamdataout_tlast),
-    .dataOutTStrb(streamdataout_tstrb),
+    .dataOutTLast (streamdataout_tlast),
+    .dataOutTStrb (streamdataout_tstrb)
 
-    .configRegister0(configRegister0)
 
      );
 

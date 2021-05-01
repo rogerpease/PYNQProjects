@@ -16,6 +16,13 @@
 	(
 		// Users to add ports here
                 output wire [31:0]configRegister0, 
+                output wire [31:0]configRegister1, 
+                input [31:0] LastStatus,
+                input [31:0] FrameBufferStatus,
+                input [31:0] FrameBuffer0,
+                input [31:0] FrameBuffer1,
+                input [31:0] FrameBuffer2,
+                input [31:0] FrameBuffer3,
 		// User ports ends
 		// Do not modify the ports beyond this line
 
@@ -79,6 +86,8 @@
 		// Read ready. This signal indicates that the master can
     		// accept the read data and response information.
 		input wire  S_AXI_RREADY
+
+
 	);
 
 	// AXI4LITE signals
@@ -282,6 +291,13 @@
 	      slv_reg31 <= 0;
 	    end 
 	  else begin
+	    slv_reg16 <= FrameBuffer0;
+	    slv_reg17 <= FrameBuffer1;
+	    slv_reg18 <= FrameBuffer2;
+	    slv_reg19 <= FrameBuffer3;
+	    slv_reg29 <= LastStatus; 
+	    slv_reg30 <= FrameBufferStatus;
+	    slv_reg31 <= 32'hDECADE90;
 	    if (slv_reg_wren)
 	      begin
 	        case ( axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] )
@@ -467,48 +483,6 @@
 	                // Slave register 25
 	                slv_reg25[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 	              end  
-	          5'h1A:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 26
-	                slv_reg26[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
-	          5'h1B:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 27
-	                slv_reg27[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
-	          5'h1C:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 28
-	                slv_reg28[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
-	          5'h1D:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 29
-	                slv_reg29[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
-	          5'h1E:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 30
-	                slv_reg30[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
-	          5'h1F:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 31
-	                slv_reg31[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
 	          default : begin
 	                      slv_reg0 <= slv_reg0;
 	                      slv_reg1 <= slv_reg1;
@@ -535,13 +509,6 @@
 	                      slv_reg22 <= slv_reg22;
 	                      slv_reg23 <= slv_reg23;
 	                      slv_reg24 <= slv_reg24;
-	                      slv_reg25 <= slv_reg25;
-	                      slv_reg26 <= slv_reg26;
-	                      slv_reg27 <= slv_reg27;
-	                      slv_reg28 <= slv_reg28;
-	                      slv_reg29 <= slv_reg29;
-	                      slv_reg30 <= slv_reg30;
-	                      slv_reg31 <= slv_reg31;
 	                    end
 	        endcase
 	      end
@@ -707,6 +674,7 @@
 
 	// Add user logic here
         assign configRegister0 = slv_reg0;
+        assign configRegister1 = slv_reg1;
 
 	// User logic ends
 
