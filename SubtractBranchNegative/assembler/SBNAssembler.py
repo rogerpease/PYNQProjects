@@ -149,9 +149,9 @@ if __name__ == "__main__":
   else:
     # Parse file and write JSON. 
     resultFile = ParseAssemblyFile(sys.argv[1]) 
-    resultFN = sys.argv[2]+".json"
+    resultFN = sys.argv[1]+".json"
     if len(sys.argv) == 3: 
       resultFN = sys.argv[2]
-    resultFileFH = open(sys.argv[1]+".json","w")
+    resultFileFH = open(resultFN,"w")
     resultFileFH.write(resultFile) 
     resultFileFH.close()
