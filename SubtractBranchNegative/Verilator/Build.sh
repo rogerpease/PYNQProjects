@@ -1,1 +1,1 @@
-verilator --cc --exe --trace --build  -j TestSubtractBranchNegative.cpp ../Verilog/module/SBNDatapath.v 
+verilator --cc --exe --trace --build  -j TestSBNDatapath.cpp ../Verilog/module/SBNDatapath.v 
