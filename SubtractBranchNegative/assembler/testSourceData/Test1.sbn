@@ -1,6 +1,0 @@
-SBN R3,R2,R1,4
-SBN R3,2,1,4
-SBN R0,R0,R0,0  # done 
-.setreg R2 2042
-.setreg R7 2048
-.setreg R9 43

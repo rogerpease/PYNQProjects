@@ -1,0 +1,11 @@
+# Divide 300/7 = 42 R6
+#  R1 is divisor (and remainder), R2 is dividend, R3 is quotient. 
+SBN R1,R1,R2,3  # Subtract divident from divisor. Jump to 3 if we fall negative 
+SBN R3,R3,-1,0  # Increment counter
+SBN R0,0,1,-2   #Branch back to 0 to keep subtracting
+SBN R2,0,R2,1   # Invert Dividend so we can add it back to remainder. 
+SBN R1,R1,R2,1  # Add dividend back to remainder 
+SBN R0,R0,R0,0 #DONE 
+.setreg R1 300
+.setreg R2 7
+.setreg R3 0 
