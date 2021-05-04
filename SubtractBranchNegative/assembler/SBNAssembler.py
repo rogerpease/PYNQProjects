@@ -5,7 +5,12 @@
 #
 #  Roger D. Pease  -- Subtract and Branch if Negative assembler. 
 #
+#  
 #
+def usage():
+  print("Usage:  SBNAssembler.py  filename.sbn [outfilename]") 
+  print("  Outputs filename.sbn.json (unless an outfilename is specified)") 
+
 #
 # Instructions take the form: 
 #   .setreg  R1  0x1234    # Set Register 1 to 0x1234 
@@ -22,9 +27,11 @@ import re
 import sys 
 import json
 
-def usage():
-  print("Usage:  SBNAssembler.py  filename.sbn [outfilename]") 
-  print("  Outputs filename.sbn.json (unless an outfilename is specified)") 
+
+def RegisterOrConstString(isConst,Num):
+  if isConst:
+    return str(Num)
+  return "R"+str(Num)
 
 def ParseField(val):
   IsConst = 1
@@ -34,15 +41,19 @@ def ParseField(val):
   return (IsConst,int(val))
 
 #
-#
+# Assemble an instruction
 #
 #
 
 def AssembleInstruction(instruction):
-  result = {"IsComment":0,"IsSet": 0, "Opcode": 0,"Min": 0, "MinIsConst": 0,"Subtr":0, "SubtrIsConst":0,"DestReg":0,"DestSetVal": 0,"IsInstr": 0}
+  result = {"IsComment":0,"IsSet": 0, "Opcode": 0,"Min": 0, "MinIsConst": 0,"Subtr":0, "SubtrIsConst":0,"DestReg":0,"DestSetVal": 0,"IsInstr": 0,"Comment":"","OriginalInstruction":""}
   opcode = 0
+  instruction = re.sub("\n","",instruction)
+  instruction = re.sub(" *$","",instruction)
   instruction = re.sub("#.*","",instruction)
   instruction = re.sub("^ *","",instruction)
+  result["OriginalInstruction"] = instruction
+  print ('*'+instruction+'*') 
   if (instruction == ""):
     result["IsComment"] = 1 
     return result 
@@ -76,7 +87,7 @@ def AssembleInstruction(instruction):
     # Target Register 
     isConst,Val = ParseField(fields[0])
     result["Rdiff"] = Val 
-    opcode |= Val<< 16
+    opcode |= (Val<< 16)
 
     # Branch (if negative) 
     isConst,Val = ParseField(fields[3])
@@ -88,6 +99,7 @@ def AssembleInstruction(instruction):
 def ParseAssemblyFile(filename):
   resultFile = ""
   opcodes = [] 
+  comments = [] 
   registerVals = [0 for x in range(0,15)] 
   f = open(filename,"r")
   for line in f:
@@ -96,6 +108,9 @@ def ParseAssemblyFile(filename):
        registerVals[result["DestReg"]] = result["DestSetVal"]
      elif (result["IsInstr"] == 1):
        opcodes.append(result["Opcode"])
+       comments.append("Minuend " + RegisterOrConstString(result["MinIsConst"],result["Min"]) + 
+                     " Subtrahend " + RegisterOrConstString(result["SubtrIsConst"],result["Subtr"]) + 
+                    " Dest: " + "R"+str(result["DestReg"]) + " Hex: " + hex(result["Opcode"]) + " Orig " + result["OriginalInstruction"]); 
      elif not (result["IsComment"]):
        print("Unrecognized instruction "+line)
        exit(1) 
@@ -105,7 +120,9 @@ def ParseAssemblyFile(filename):
   resultFile += "],\"Registers\": ["
   registerValsHex = [str(x) for x in registerVals]
   resultFile += ",".join(registerValsHex)
-  resultFile += "]}"
+  resultFile += "],\"Comments\": [\""
+  resultFile += "\",\"".join(comments) 
+  resultFile += "\"]}"
   return resultFile 
 
 
@@ -123,7 +140,7 @@ def Test():
   assert(AssembleInstruction(".setreg R6 4494")["DestReg"] == 6) 
   assert(AssembleInstruction(".setreg R6 4494")["DestSetVal"] == 4494) 
 
-  Test1JSONString = ParseAssemblyFile("testSourceData/Test1.sbn") 
+  Test1JSONString = ParseAssemblyFile("../testcases/testSourceAssembly/Test1.sbn") 
   file = json.loads(Test1JSONString)
   assert(file["Registers"][0] == 0) 
   assert(file["Registers"][1] == 0) 
@@ -133,7 +150,6 @@ def Test():
   assert(file["Instructions"][1] == int("43030201",16)) 
 
 
-#  assert(file.opcode[0] == 
 #
 #  Main Routine:  
 #
