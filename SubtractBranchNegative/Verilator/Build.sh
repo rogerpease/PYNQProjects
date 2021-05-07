@@ -1,1 +1,2 @@
-verilator --cc --exe --trace --build  -j TestSBNDatapath.cpp ../Verilog/module/SBNDatapath.v 
+verilator --cc --exe --trace --build -j TestSBN.cpp ../Verilog/module/SBNDatapath.v --dump-defines -o TestSBNDatapath
+

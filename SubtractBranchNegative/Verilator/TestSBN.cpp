@@ -17,13 +17,16 @@
 #include <iostream>
 #include <fstream>
 
+#define TOPCLK top->clk
+#define TOPRESET top->reset
+#define TOPEVAL top->eval(); 
 
 #define PASSORDIE(x,y) { if (x) { printf("PASS Step %s\n",y); } else {printf("Failed step %s",y);  exit(1); } }
 
 void ToggleClock (const std::unique_ptr<VSBNDatapath> & top) 
 { 
-   top->clk = 1; Verilated::timeInc(5); top->eval(); 
-   top->clk = 0; Verilated::timeInc(5); top->eval();
+   TOPCLK = 1; Verilated::timeInc(5); TOPEVAL
+   TOPCLK = 0; Verilated::timeInc(5); TOPEVAL 
 } 
 
 
@@ -39,6 +42,7 @@ void Reset(const std::unique_ptr<VSBNDatapath> & top)
   top->reset = 0; 
   ToggleClock(top);  
 }
+
 
 void parseJsonGolden(std::string name,std::vector<unsigned int> & Registers)
 {
@@ -134,7 +138,9 @@ bool RunTest(const std::unique_ptr<VSBNDatapath> & top, std::string testAssemble
     cycleCount++;
     if (cycleCount > 500) timedOut = 1;  
   }
+
   bool failed = false; 
+  if (timedOut == 1) { printf("FAILED-- timed out!"); failed = true; } 
   for (int regAddr= 0; regAddr < RegisterValues.size(); regAddr++)  
   {
     top->regAddr         = regAddr; 
@@ -151,7 +157,6 @@ bool RunTest(const std::unique_ptr<VSBNDatapath> & top, std::string testAssemble
   if (failed) return false; 
 
   
-
   return true; 
   
 }
@@ -169,6 +174,7 @@ int main(int argc, char **argv)
   assert(RunTest(top, "../testcases/testAssembled/Divide300By7.sbn.json", "../testcases/testResults/Divide300By7.result.json")); 
 
   printf("All tests passed!\n"); 
+
   return 0; 
 
 }
