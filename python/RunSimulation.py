@@ -5,9 +5,8 @@
 # NOTE: Normally I'd do this with a makefile but this is more for notes/education purposes so drawing out the steps makes more sense. 
 #
 # Quick script to capture how to compile verilog for simulation on the command line with Vivado. 
-#
-#
-# TODO: Make this into a python object so that I can call 
+# In a "Real" simulation environment I would make this into an object and allow for multiple configurations, snapshots, do directory searches
+#  for testcases, run jobs in parallel on servers, etc.. 
 #
 #
 
@@ -21,6 +20,10 @@ os.environ["LD_LIBRARY_PATH"]= "/tools/Xilinx/.xinstall/Vivado_2020.2/lib/lnx64.
 VIVADO_BIN = "/tools/Xilinx/Vivado/2020.2/bin/"
 
 
+rootDirectory=os.getcwd()+"/" 
+runDirectory =os.getcwd()+"/simulation" 
+os.system("rm -rf "+runDirectory+"/xsim.dir") 
+
 
 #
 # Make sure to use 
@@ -33,6 +36,7 @@ VIVADO_BIN = "/tools/Xilinx/Vivado/2020.2/bin/"
 
 
 def Run(commandString):
+  os.chdir(runDirectory)
   print("Running: "," ".join(commandString))
   result = subprocess.Popen(commandString)
   text = result.communicate()[0]
@@ -47,16 +51,18 @@ def RunVerilogCompile(VerilogFiles):
   print ("Running Verilog compile") 
   if (len(VerilogFiles)): 
     command = [VIVADO_BIN + "xvlog", "-work","xil_defaultlib", 
-       "--include","./Verilog/include","--include","/tools/Xilinx/Vivado/2020.2/data/xilinx_vip/include"]
-  Run(command + VerilogFiles) 
+       "--include",rootDirectory+"/Verilog/include","--include","/tools/Xilinx/Vivado/2020.2/data/xilinx_vip/include"]
+    fullPathVerilogFiles = [rootDirectory+VerilogFile for VerilogFile in VerilogFiles] 
+    Run(command + fullPathVerilogFiles) 
 
  
 def RunSVCompile(SVFiles): 
   print ("Running SystemVerilog compile") 
   if (len(SVFiles)): 
     command = [VIVADO_BIN + "xvlog","--sv","-work","xil_defaultlib","-L","uva","-L","axi_vip_v1_1_8","-L","xilinx_vip", 
-      "--include", "./Verilog/include", "--include", "/tools/Xilinx/Vivado/2020.2/data/xilinx_vip/include"] 
-    Run(command + SVFiles) 
+      "--include", rootDirectory+"/Verilog/include", "--include", "/tools/Xilinx/Vivado/2020.2/data/xilinx_vip/include"] 
+    fullPathSVFiles = [rootDirectory+SVFile for SVFile in SVFiles] 
+    Run(command + fullPathSVFiles) 
   else:
     print ("No SV Files Found ") 
 
@@ -72,9 +78,11 @@ def RunElab(topLevelTB,snapshot):
   Run(command) 
 
 
-def RunSim(Snapshot): 
-  command = [VIVADO_BIN + "xsim", Snapshot,"--tclbatch","scripts/simulation."+Snapshot+".tcl"] 
+def RunSim(Snapshot,testcase): 
+  os.chdir(rootDirectory+"simulation/") 
+  command = [VIVADO_BIN + "xsim", Snapshot,"--tclbatch",rootDirectory+"/simulation/scripts/simulation."+Snapshot+"."+testcase+".tcl"] 
   Run(command) 
+  os.chdir(rootDirectory) 
 
 if __name__ == "__main__":
   with open("config.json","r") as fp:
@@ -90,18 +98,21 @@ if __name__ == "__main__":
 
 
   try:
-    config["Snapshot"]  
+    config["Simulations"]  
   except KeyError:
-    Snapshot = "default"
+    Snapshots = ["default"]
   else: 
-    Snapshot = config["Snapshot"] 
+    Snapshots = config["Simulations"] 
+  for snapshotName in Snapshots:
+    print("Snapshot : "+ snapshotName) 
+    for testcaseName in Snapshots[snapshotName]["Testcases"]:
+      print("  testcase: "+ testcaseName) 
 
-
-  os.system("rm -rf xsim.dir") 
   RunVerilogCompile(config["VerilogFiles"])
   RunSVCompile(config["SVFiles"])
-  print (TopLevelTB,Snapshot) 
-  RunElab(TopLevelTB,Snapshot) 
-  RunSim(Snapshot) 
+  for snapshotName in Snapshots:
+    RunElab(TopLevelTB,snapshotName) 
+    for testcaseName in Snapshots[snapshotName]["Testcases"]:
+      RunSim(snapshotName,testcaseName) 
 
 
