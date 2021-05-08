@@ -1,1 +1,26 @@
-{ "FPGAImagePath": "FPGAImage", "BitStreamName": "SubtractBranchNegative" } 
+{ "FPGAImagePath": "FPGAImage", "BitStreamName": "SubtractBranchNegative",
+"TopLevelTB": "SBNModule_tb",
+
+"SynthesisSnapshots": ["datapath","module"],
+
+"Simulations": {
+    "default": {"Testcases": ["Multiply4by3"] }
+ },
+
+
+"VerilogFiles": [
+"Verilog/module/SBNDatapath.v",
+"Verilog/module/SBNModule.v",
+"Verilog/module/SBNModule_v1_0_DatapathControl.v"],
+"SVFiles": [ 
+"Verilog/tb/glbl.v",
+"Verilog/tb/SBNModule_bfm_1_master_0_0_pkg.sv",
+"Verilog/tb/SBNModule_bfm_1_master_0_0.sv",
+"Verilog/tb/SBNModule_bfm_1.v",
+"Verilog/tb/SBNModule_bfm_1_wrapper.v",
+"Verilog/tb/SBNModule_sbndatapath.v",
+"Verilog/tb/SBNModule_bfm_1_SBNModule_0_0.v",
+"Verilog/tb/SBNModule_tb.sv"
+]
+
+} 
