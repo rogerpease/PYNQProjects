@@ -1,6 +1,5 @@
 #!/usr/bin/env python3 
 
-
 #
 #
 #  Roger D. Pease  -- Subtract and Branch if Negative assembler. 
@@ -46,17 +45,30 @@ def ParseField(val):
 #
 
 def AssembleInstruction(instruction):
-  result = {"IsComment":0,"IsSet": 0, "Opcode": 0,"Min": 0, "MinIsConst": 0,"Subtr":0, "SubtrIsConst":0,"DestReg":0,"DestSetVal": 0,"IsInstr": 0,"Comment":"","OriginalInstruction":""}
+  result = {"IsComment":0,
+            "IsSet": 0, 
+            "Opcode": 0,
+            "Min": 0, 
+            "MinIsConst": 0,
+            "Subtr":0, 
+            "SubtrIsConst":0,
+            "DestReg":0,
+            "DestSetVal": 0,
+            "IsInstr": 0,
+            "Comment":"",
+            "OriginalInstruction":""}
   opcode = 0
   instruction = re.sub("\n","",instruction)
   instruction = re.sub(" *$","",instruction)
   instruction = re.sub("#.*","",instruction)
   instruction = re.sub("^ *","",instruction)
   result["OriginalInstruction"] = instruction
-  print ('*'+instruction+'*') 
   if (instruction == ""):
     result["IsComment"] = 1 
     return result 
+  #
+  # Set a register 
+  #
   if (instruction.startswith (".setreg")):
     instruction = re.sub("^\.setreg *","",instruction)
     instruction = re.sub(" +"," ",instruction) # Make everything one space
@@ -67,17 +79,23 @@ def AssembleInstruction(instruction):
     result["DestSetVal"] = int(val)  
     return result 
      
+  #
+  # Subtract and Branch if Negative instruction 
+  #
   if (instruction.startswith ("SBN ")):
     result["IsInstr"] = 1 
     instruction = re.sub("SBN *","",instruction)
     instruction = re.sub(" +","",instruction)
     fields = instruction.split(",")
+
+    # subtrahend 
     isConst,Val = ParseField(fields[2])
     opcode |= (Val & 0xFF)
     opcode |= isConst << 24
     result["Subtr"] = Val 
     result["SubtrIsConst"] = isConst 
 
+    # minuend  
     isConst,Val = ParseField(fields[1])
     opcode |= (Val & 0xFF)  << 8
     opcode |= isConst << 25
@@ -96,9 +114,15 @@ def AssembleInstruction(instruction):
     return result 
   return result     
 
+
+#
+# Parse Assembly File 
+#
+#
+
 def ParseAssemblyFile(filename):
   resultFile = ""
-  opcodes = [] 
+  opcodes = []
   comments = [] 
   registerVals = [0 for x in range(0,15)] 
   f = open(filename,"r")
