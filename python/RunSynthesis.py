@@ -44,30 +44,20 @@ def Run(commandString):
 
 
 def RunSynth(Snapshot): 
-  command = [VIVADO_BIN + "vivado","-mode","batch", "-source","scripts/synthesis.tcl"] 
+  command = [VIVADO_BIN + "vivado","-mode","batch", "-source","scripts/synthesis."+Snapshot+".tcl"] 
   Run(command) 
 
 if __name__ == "__main__":
   with open("config.json","r") as fp:
     config = json.load(fp)
 
-  try:
-    TopLevelTB = config["TopLevelTB"] 
-    config["VerilogFiles"]  
-    config["SVFiles"]  
-  except KeyError:
-    print("config TopLevelTB not found")
-    exit() 
-
 
   try:
-    config["Snapshot"]  
+    Snapshots = config["SynthesisSnapshots"] 
   except KeyError:
-    Snapshot = "default"
-  else: 
-    Snapshot = config["Snapshot"] 
+    Snapshots = ["default"]
 
-
-  RunSynth(Snapshot) 
+  for snapshot in Snapshots: 
+    RunSynth(snapshot) 
 
 

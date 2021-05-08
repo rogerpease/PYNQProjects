@@ -1,7 +1,11 @@
 //
+//  Roger D. Pease 
+//  See http://rogerpease.com/FPGAProjects for more information 
+//
 //  Instruction format:
 //     32 registers, 32 bits wide, R0 is always 0
 //
+// Instruction format is as follows: 
 //   Bits7-0  subtrahend 
 //   Bits15-8 minuend  
 //   Bits23-16 destination (always a register number)
@@ -9,7 +13,6 @@
 //   Bits24: subtrahend is constant (1), register (0) 
 //   Bits25: minuend is constant (1), register (0) 
 //    
-//   Subtract 0 
 // 
 
 module SBNDatapath 
@@ -28,6 +31,7 @@ module SBNDatapath
    input       [REGISTERFILEWIDTH-1:0]          regWriteData, 
    input                                        regWriteEnable, 
    output wire [REGISTERFILEWIDTH-1:0]          regReadData, 
+   output reg[15:0] InstructionsExecuted, 
 
    output reg done,
    output wire [$clog2(INSTRUCTIONMEMDEPTH)-1:0] IP, 
@@ -35,7 +39,7 @@ module SBNDatapath
 
 );
 
-   parameter DEBUG = 0; 
+   parameter DEBUG = 1; 
    parameter REGISTERFILEINDEX = $clog2(REGISTERFILEDEPTH); 
    reg [$clog2(INSTRUCTIONMEMDEPTH)-1:0] InstructionPointer; 
    reg [REGISTERFILEWIDTH-1:0] RegisterFile[REGISTERFILEDEPTH-1:0]; 
@@ -44,6 +48,7 @@ module SBNDatapath
    wire [$clog2(INSTRUCTIONMEMDEPTH):0] NextIP;
    wire [INSTRUCTIONWIDTH-1:0]          instruction;
    wire [4:0] target;
+
 
 
    assign target = instruction[20:16];
@@ -62,17 +67,23 @@ module SBNDatapath
       reg[REGISTERFILEWIDTH-1:0] destination;
       reg subtrahendConstant;
       reg minuendConstant;
-      reg[5:0] offset;
       reg[4:0] registerNum; 
       reg[31:0] difference;
       if (DEBUG) begin 
-        $display("Instruction Pointer %h" , InstructionPointer); 
-        $display("Instruction         %h" , instruction); 
+        $display("Instruction Pointer %h %h RF %h %h %h %h %h ", 
+                   InstructionPointer, 
+                   instruction,
+                   RegisterFile[0],
+                   RegisterFile[1],
+                   RegisterFile[2],
+                   RegisterFile[3],
+                   RegisterFile[4]); 
       end 
 
       if (reset) 
       begin 
         done = 0;
+        InstructionsExecuted = 0; 
         // Loops are a pain here because if I declare a reg[5:0] I will get width mismatches.
         // If I declare reg[4:0] I will loop forever trying to hit 32 (I will roll over at 31). 
         RegisterFile[0] = 0; RegisterFile[1] = 0; RegisterFile[2] = 0; RegisterFile[3] = 0; 
@@ -80,30 +91,20 @@ module SBNDatapath
         RegisterFile[8] = 0; RegisterFile[9] = 0; RegisterFile[10] = 0; RegisterFile[11] = 0; 
         RegisterFile[12] = 0; RegisterFile[13] = 0; RegisterFile[14] = 0; RegisterFile[15] = 0; 
         RegisterFile[16] = 0; RegisterFile[17] = 0; RegisterFile[18] = 0; RegisterFile[19] = 0; 
+        InstructionPointer = 0; 
+        $display("reset"); 
       end 
       else 
       begin 
-        if (DEBUG) 
-        begin  
-          $display("Before"); 
-          $display("RegisterFile0: ",RegisterFile[0]); 
-          $display("RegisterFile1: ",RegisterFile[1]); 
-          $display("RegisterFile2: ",RegisterFile[2]); 
-          $display("RegisterFile3: ",RegisterFile[3]); 
-        end 
         if (enable && !done) 
         begin 
+         $display("Enable and not done"); 
          // for 10-4, 10 is minuend and 4 is subtrahend. 
           subtrahendConstant = instruction[24];
           minuendConstant    = instruction[25];
-          offset             = instruction[31:26];
   
-        if (DEBUG) 
-        begin  
-          $display("subtrahend constant ", subtrahendConstant);
-          $display("minuend constant ", minuendConstant); 
-        end 
           /* verilator lint_off width */ 
+          InstructionsExecuted = InstructionsExecuted + 1; 
 
           if (subtrahendConstant) 
             subtrahend = $signed(instruction[7:0]); 
@@ -121,13 +122,14 @@ module SBNDatapath
           if (target != 0) 
             RegisterFile[target] <= difference; 
 
-          if (instruction == 0)
+          if (instruction == 0) 
           begin 
             $display("DONE!");
             done = 1; 
           end
-          if (!done) 
+          else 
           begin 
+            done = 0; 
             if (difference[31] == 1) 
             begin 
               InstructionPointer = BranchIP;
@@ -144,7 +146,8 @@ module SBNDatapath
         end 
         else
         begin 
-          InstructionPointer = 0;  
+          if (DEBUG && done)  $display("DONE!");
+          InstructionsExecuted = InstructionsExecuted; 
           if ((regWriteEnable) && (regAddr != 0))
             RegisterFile[regAddr] <= regWriteData;
         end 
