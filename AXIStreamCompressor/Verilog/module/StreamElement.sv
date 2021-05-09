@@ -155,18 +155,20 @@ module StreamElement
 
    // Check each byte to see if it is the delimiter between the variable and fixed fields. 
    // Put the result in an array then pick the lowest result. 
-   genvar byteNum; 
-   for (byteNum = 0; byteNum < MAX_VARIABLEFIELD_LENGTH+ DATA_BUS_WIDTH_BYTES; byteNum = byteNum + 1)          
-       assign delimiterByteArray[byteNum] = (USEStreamByteFifo[byteNum][7:0] == 'h2c) ? 1 : 0;
-        
    wire latchDataToSecondBank;
-   
    assign latchDataToSecondBank = tokenIn && (firstByteOffsetIn != 0);      
+
+
+   genvar BI; 
+   generate
+   for (BI = 0; BI < MAX_VARIABLEFIELD_LENGTH+ DATA_BUS_WIDTH_BYTES; BI = BI + 1) begin : strangeName 
+       assign delimiterByteArray[BI] = (USEStreamByteFifo[BI][7:0] == 'h2c) ? 1 : 0;
+
         
    // Make sure we expose the output bytes. 
-     always @(posedge clk)
+   always @(posedge clk)
       
-     begin 
+   begin 
       integer streamByteNum; 
       for (streamByteNum = 0; streamByteNum < USESTREAMBYTES_BYTE_DEPTH; streamByteNum = streamByteNum + 1)             
       begin
@@ -188,7 +190,7 @@ module StreamElement
               end 
             end 
             else 
-              if (byteNum < DATA_BUS_WIDTH_BYTES)
+              if (BI< DATA_BUS_WIDTH_BYTES)
               begin 
                 USEStreamByteFifo[streamByteNum] <= dataIn[streamByteNum];  
               end
@@ -214,16 +216,18 @@ module StreamElement
             if (USEStreamState == USEStreamState_Shifting)
             begin
               if (USEStartByte >= 4) 
-                USEStreamByteFifo[byteNum] <= USEStreamByteFifo[(byteNum+4) % USESTREAMBYTES_BYTE_DEPTH]; 
+                USEStreamByteFifo[BI] <= USEStreamByteFifo[(BI+4) % USESTREAMBYTES_BYTE_DEPTH]; 
               else
               if (USEStartByte[1] == 1) 
-                USEStreamByteFifo[byteNum] <= USEStreamByteFifo[(byteNum+2) % USESTREAMBYTES_BYTE_DEPTH]; 
+                USEStreamByteFifo[BI] <= USEStreamByteFifo[(BI+2) % USESTREAMBYTES_BYTE_DEPTH]; 
               else
               if (USEStartByte[0] == 1) 
-                USEStreamByteFifo[byteNum] <= USEStreamByteFifo[(byteNum+1) % USESTREAMBYTES_BYTE_DEPTH]; 
+                USEStreamByteFifo[BI] <= USEStreamByteFifo[(BI+1) % USESTREAMBYTES_BYTE_DEPTH]; 
             end
         end
-    end  
+    end 
+    end 
+    endgenerate 
  
     wire latchData;
     assign latchData = (token) && (dataInValid); 
