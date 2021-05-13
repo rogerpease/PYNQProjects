@@ -31,8 +31,8 @@ module StreamElement
     parameter VARIABLEFIELD_DELIMITER=8'h2c,
 /* verilator lint_on UNUSED */
     parameter FIXEDFIELD_LENGTH_BYTES='h11,
-    parameter MAX_UNCOMPRESSED_BYTES = 8,
-    parameter MY_ID=0,    // Do I hold the token on reset or does someone else? 
+    parameter MAX_UNCOMPRESSED_BYTES = 34,
+    parameter MY_ID=0,                   // Do I hold the token on reset or does someone else? 
     parameter RESET_TOKEN_HOLDER_ID=0    // Do I hold the token on reset or does someone else? 
    )
    ( 
@@ -53,24 +53,24 @@ module StreamElement
       input  wire                                        USEStreamDataTaken
    );  
    
-   reg  [$clog2(MAX_USE_BYTES)-1:0]   USEStreamByteLength;
 
    
     parameter USEStreamState_Empty = 0, 
               USEStreamState_Filling = 1, 
               USEStreamState_Shifting = 2,
               USEStreamState_WaitingForTake = 3; 
-    parameter USESTREAMBYTES_BYTE_DEPTH = MAX_USE_BYTES+DATA_BUS_WIDTH_BYTES; 
-   
-//    parameter MAX_USE_BYTES_CLOG2 = $clog2(MAX_USE_BYTES);
 
+    parameter DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY = MAX_USE_BYTES+DATA_BUS_WIDTH_BYTES; 
+   
+
+   reg  [$clog2(DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY)-1:0]   USEStreamByteLength;
 
     reg [$clog2(DATA_BUS_WIDTH_BYTES)-1:0]           USEStartByte;  
-    parameter USEBANKSELECTWIDTH = $clog2(USESTREAMBYTES_BYTE_DEPTH);  
+    parameter USEBANKSELECTWIDTH = $clog2(DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY);  
     reg [USEBANKSELECTWIDTH-1:0]      USECurrentBank;  
 
     typedef reg[7:0] byteReg;
-    byteReg [(USESTREAMBYTES_BYTE_DEPTH-1):0]   USEStreamByteFifo;
+    byteReg [(DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY-1):0]   USEStreamByteFifo;
     reg                              [1:0]      USEStreamState;  
 
     //
@@ -82,8 +82,7 @@ module StreamElement
 
     reg token;
     reg passToken; 
-    parameter MAX_USE_BYTES= MAX_VARIABLEFIELD_LENGTH + 
-                             FIXEDFIELD_LENGTH_BYTES + 1;
+    parameter MAX_USE_BYTES = MAX_VARIABLEFIELD_LENGTH + FIXEDFIELD_LENGTH_BYTES + 1;
 
     always @(posedge clk) 
     begin 
@@ -115,8 +114,8 @@ module StreamElement
     //    
 
     /* verilator lint_off UNDRIVEN */ 
-    logic [USESTREAMBYTES_BYTE_DEPTH-1:0]         delimiterByteArray;
-    logic [$clog2(USESTREAMBYTES_BYTE_DEPTH)-1:0] delimiterByteNum;
+    logic [DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY-1:0]         delimiterByteArray;
+    logic [$clog2(DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY)-1:0] delimiterByteNum; // Defined as the absolute byte position of the delimiter Byte (not the offset from the start).
     /* verilator lint_on UNDRIVEN */ 
 
     // Build an array of delimiter detectors. 
@@ -124,10 +123,10 @@ module StreamElement
     integer i;  
     always_comb 
     begin 
-      delimiterByteNum = 0; 
-      for (i = USESTREAMBYTES_BYTE_DEPTH-1; i>=0; i--) 
-        if (delimiterByteArray[i] && (i >= USEStartByte)) 
-          delimiterByteNum = i[$clog2(USESTREAMBYTES_BYTE_DEPTH)-1:0]; 
+      delimiterByteNum = DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY-1; 
+      for (i = DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY-1; i>=0; i--) 
+        if (delimiterByteArray[i] && (i > USEStartByte)) 
+          delimiterByteNum = i[$clog2(DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY)-1:0]; 
     end 
 
     // Set the bytelength. Either assume it's the max (so we keep accumulating)
@@ -144,99 +143,78 @@ module StreamElement
 
     /* verilator lint_on WIDTH */
 
-    always @(posedge clk) USEStreamByteLength <= (delimiterByteNum == 0) ? MAX_USE_BYTES: USEStreamComputedByteLength; 
+    always @(posedge clk) USEStreamByteLength <= (delimiterByteNum == 0) ? MAX_USE_BYTES : USEStreamComputedByteLength; 
 
 
-    genvar streamOutByte; 
-    generate 
-      for (streamOutByte = 0; streamOutByte < MAX_USE_BYTES; streamOutByte = streamOutByte + 1)          
+    // Generate the output  
+    genvar streamOutByte;
+    for (streamOutByte = 0; streamOutByte < MAX_USE_BYTES; streamOutByte = streamOutByte + 1) begin : outputBytes
         assign USEStreamOut[streamOutByte] = USEStreamByteFifo[streamOutByte];
-    endgenerate
+    end
 
+   reg[5:0] LastByteInMessage;
+   assign LastByteInMessage = delimiterByteNum + FIXEDFIELD_LENGTH_BYTES; 
+   /////////////////////////////////////////////////////////////////////////////////////////////////
+   //
    // Check each byte to see if it is the delimiter between the variable and fixed fields. 
    // Put the result in an array then pick the lowest result. 
+   //
+   wire latchData;
    wire latchDataToSecondBank;
+
+   assign latchData = (token) && (dataInValid); 
    assign latchDataToSecondBank = tokenIn && (firstByteOffsetIn != 0);      
 
-
    genvar BI; 
-   generate
-   for (BI = 0; BI < MAX_VARIABLEFIELD_LENGTH+ DATA_BUS_WIDTH_BYTES; BI = BI + 1) begin : strangeName 
+     for (BI = 0; BI < MAX_VARIABLEFIELD_LENGTH+ DATA_BUS_WIDTH_BYTES; BI = BI + 1) begin : delimiterByteArrayBuilder 
        assign delimiterByteArray[BI] = (USEStreamByteFifo[BI][7:0] == 'h2c) ? 1 : 0;
+     end
 
+
+   // Rules are pretty simple:
+   // Each byte should be doing one of three things:
+   //   Capturing it's associated datain. 
+   //   Shifting down by 1,2, or 4  
+   //   Holding data 
+
+   genvar streamByteNum; 
+
+   for (streamByteNum = 0; streamByteNum < DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY; streamByteNum = streamByteNum + 1)             
+   begin : dataInCaptureBlock 
+     wire [7:0] dataInSelection; 
+     wire [7:0] dataShiftSelection; 
+     wire latchCurrentBank; 
+     wire [USEBANKSELECTWIDTH-1:0] streamBankNum; 
+     assign dataInSelection = dataIn[streamByteNum%DATA_BUS_WIDTH_BYTES]; 
+
+     assign dataShiftSelection = (USEStartByte[2]) ? USEStreamByteFifo[(streamByteNum+4) % DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY]: 
+                                 (USEStartByte[1]) ? USEStreamByteFifo[(streamByteNum+2) % DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY]: 
+                                 (USEStartByte[0]) ? USEStreamByteFifo[(streamByteNum+1) % DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY]: 
+                                 USEStreamByteFifo[streamByteNum]; 
+
+     assign streamBankNum = (streamByteNum >> 3); 
+
+     assign latchCurrentBank = 
+           (((!token) && (!tokenIn) && (USEStreamState == USEStreamState_Empty)) ||   // We're empty 
+            (tokenIn && (firstByteOffsetIn != 0) && (streamBankNum == 1))  || 
+            (tokenIn && (firstByteOffsetIn == 0) && (streamBankNum == 0))  || 
+            (token && (streamBankNum == USECurrentBank)));
+
+     always @(posedge clk) 
+       if (latchCurrentBank) 
+         USEStreamByteFifo[streamByteNum] <= dataIn[streamByteNum%DATA_BUS_WIDTH_BYTES]; 
+       else if (USEStreamState == USEStreamState_Shifting) 
+         USEStreamByteFifo[streamByteNum] <= dataShiftSelection;
+   end
         
-   // Make sure we expose the output bytes. 
-   always @(posedge clk)
-      
-   begin 
-      integer streamByteNum; 
-      for (streamByteNum = 0; streamByteNum < USESTREAMBYTES_BYTE_DEPTH; streamByteNum = streamByteNum + 1)             
-      begin
-
-        if (reset == 1) begin
-        // do nothing. 
-          end
-        else 
-      // If we are in Empty state, always copy in the latest data to the first register. No reason not to. 
-          if (USEStreamState == USEStreamState_Empty)
-          begin 
-            
-            if (latchDataToSecondBank)
-            begin
-              if((streamByteNum >= (1)*DATA_BUS_WIDTH_BYTES) &&
-                 (streamByteNum  < (2)*DATA_BUS_WIDTH_BYTES)) 
-              begin 
-                USEStreamByteFifo[streamByteNum] <= dataIn[streamByteNum]; 
-              end 
-            end 
-            else 
-              if (BI< DATA_BUS_WIDTH_BYTES)
-              begin 
-                USEStreamByteFifo[streamByteNum] <= dataIn[streamByteNum];  
-              end
-              else 
-              begin
-                // This looks like an error but it's not... If I'm on byte 0,8, 16, etc I want data_in[0]. 
-                USEStreamByteFifo[streamByteNum] <= USEStreamByteFifo[streamByteNum%DATA_BUS_WIDTH_BYTES];
-              end
-          end  
-          else if (USEStreamState == USEStreamState_Filling) 
-          begin 
-         /* verilator lint_off WIDTH */
-            if (latchData && 
-                (streamByteNum >=  USECurrentBank   *DATA_BUS_WIDTH_BYTES) &&
-                (streamByteNum  < (USECurrentBank+1)*DATA_BUS_WIDTH_BYTES)) 
-            begin 
-              USEStreamByteFifo[streamByteNum] <= dataIn[streamByteNum%DATA_BUS_WIDTH_BYTES];  
-            end 
-         /* verilator lint_on WIDTH */
-          end 
-          else 
-            // Shift-down 
-            if (USEStreamState == USEStreamState_Shifting)
-            begin
-              if (USEStartByte >= 4) 
-                USEStreamByteFifo[BI] <= USEStreamByteFifo[(BI+4) % USESTREAMBYTES_BYTE_DEPTH]; 
-              else
-              if (USEStartByte[1] == 1) 
-                USEStreamByteFifo[BI] <= USEStreamByteFifo[(BI+2) % USESTREAMBYTES_BYTE_DEPTH]; 
-              else
-              if (USEStartByte[0] == 1) 
-                USEStreamByteFifo[BI] <= USEStreamByteFifo[(BI+1) % USESTREAMBYTES_BYTE_DEPTH]; 
-            end
-        end
-    end 
-    end 
-    endgenerate 
  
-    wire latchData;
-    assign latchData = (token) && (dataInValid); 
 
-
+    //
     // Now for the specific controller. 
     //
     always @(posedge clk) 
     begin 
+      integer LastByteIWillHave = 0; 
       if (reset) 
       begin 
         USEStreamState         <= USEStreamState_Empty; 
@@ -252,85 +230,109 @@ module StreamElement
         
         if (USEStreamState == USEStreamState_Empty) 
         begin
-           $display("Stream Element ", MY_ID," in Empty"); 
+           $display("Model: Stream Element ", MY_ID," in Empty"); 
 
-           if ((dataInValid) && ((tokenIn) || (token)))
+           // Preparing for the *next* cycle. 
+           if ((dataInValid) && ((tokenIn) || (token))) 
            begin
-              $display("Stream Element ", MY_ID," Transitioning to Filling FirstByteOffsetIn", firstByteOffsetIn); 
+              $display("Model: Stream Element ", MY_ID," Transitioning to Filling FirstByteOffsetIn", firstByteOffsetIn); 
               USEStreamState <= USEStreamState_Filling; 
               USEStartByte   <= firstByteOffsetIn;
-              if (tokenIn)
-              begin 
-                 if (firstByteOffsetIn == 0) 
-                 begin
-                   USECurrentBank <= 1; 
-                 end
-                 else 
-                 begin
-                   USECurrentBank <= 2;
-                 end
-              end               
+              if (firstByteOffsetIn == 0) 
+              begin
+                USECurrentBank <= 1; 
+              end
+              else 
+              begin
+                USECurrentBank <= 2;
+              end
             end
         end
         else if (USEStreamState == USEStreamState_Filling) 
         begin
+           LastByteIWillHave = $unsigned(USECurrentBank + 1) *DATA_BUS_WIDTH_BYTES-1; 
            if (latchData) begin     
-             $display("Stream Element ", MY_ID," in filling " , USECurrentBank , " latchdata high " );
-             $display("Stream Element ", MY_ID," USEStartByte ",USEStartByte, " USEStreamByteLength ", USEStreamByteLength);
+             $display("Model: Stream Element ", MY_ID," Filling " , USECurrentBank , " latchdata high " );
+             $display("Model: Stream Element ", MY_ID," USEStartByte ",USEStartByte, " USEStreamByteLength ", USEStreamByteLength,  
+                      " LastByteIWillHave ", LastByteIWillHave, " LastByteInMessage ", LastByteInMessage );
 
              USECurrentBank <= USECurrentBank + 1;  
              // If we have the data we need. 
     /* verilator lint_off WIDTH */
-             if ((USECurrentBank)*DATA_BUS_WIDTH_BYTES >= 
-               (USEStreamByteLength+USEStartByte-DATA_BUS_WIDTH_BYTES)) 
+             if (LastByteIWillHave >= LastByteInMessage) 
              begin
-               $display("Stream Element ", MY_ID," passing token and sending to Shifting state." );
-
-               USEStreamState <= USEStreamState_Shifting; 
+               $display("Model: Stream Element ", MY_ID," passing token and sending to Shifting state." );
                passToken <= 1; 
+               if (USEStartByte > 0)  // If nothing to shift go straight to 
+               begin
+                 USEStreamState <= USEStreamState_Shifting; 
+               end 
+               else 
+               begin 
+                 USEStreamState <= USEStreamState_WaitingForTake; 
+                 USEStreamByteLengthOut <= USEStreamByteLength;
+               end
                //
                // If I started at byte 3 and took in a 30 byte message 
                // my new first byte would be at 33%8 = 1 
                //
                firstByteOffsetOut <= (USEStreamByteLength + USEStartByte) % DATA_BUS_WIDTH_BYTES;
              end
+             else 
+               $display("Model: Stream Element ", MY_ID," still not enough data." );
     /* verilator lint_on WIDTH */
            end
         end 
         else if (USEStreamState == USEStreamState_Shifting) 
         begin
+            $display("Model: Stream Element ", MY_ID," Shifting state." );
     /* verilator lint_off WIDTH */
-             if (USEStartByte >= 4) 
-             begin 
-                USEStartByte     <= USEStartByte - 4; 
-             end
-             else
-             if (USEStartByte[1] == 1) 
-                USEStartByte     <= USEStartByte - 2;
-             else
-             if (USEStartByte[0] == 1) 
-                USEStartByte     <= USEStartByte - 1;
-             else             
-             begin 
-               USEStreamState         <= USEStreamState_WaitingForTake;
-               USECurrentBank         <= 0; 
-               USEStreamByteLengthOut <= USEStreamByteLength;
-             end
+            if (USEStartByte >= 4) 
+            begin 
+               USEStartByte     <= USEStartByte - 4; 
+            end
+            else
+            if (USEStartByte[1] == 1) 
+                USEStartByte    <= USEStartByte - 2;
+            else
+            if (USEStartByte[0] == 1) 
+               USEStartByte     <= USEStartByte - 1;
+            else             
+            begin 
+              USEStreamState         <= USEStreamState_WaitingForTake;
+              USECurrentBank         <= 0; 
+              USEStreamByteLengthOut <= USEStreamByteLength;
+            end
     /* verilator lint_on WIDTH */
         end
         else if (USEStreamState == USEStreamState_WaitingForTake) 
         begin       
     /* verilator lint_off WIDTH */
-          $display("Stream Element ", MY_ID," started in Filling " + USECurrentBank + " latchdata " );
+          $display("Model: Stream Element ", MY_ID," started in Filling " + USECurrentBank + " latchdata " );
     /* verilator lint_on WIDTH */
           if (USEStreamDataTaken == 1) 
           begin
              USEStreamByteLengthOut <= 0;
              USEStreamState         <= USEStreamState_Empty;
+             USECurrentBank         <= 0;
           end   
         end
       end
     end
+
+ 
+      always @(negedge clk) 
+      begin : debugTask 
+       integer byteNum; 
+       $write ("Model: Stream Buffer: ");
+       for (byteNum= DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY-1; byteNum >= 0; byteNum = byteNum - 1) 
+        begin 
+          $write("%h",USEStreamByteFifo[byteNum]);
+          if ((byteNum % 4) == 0) $write(" ");
+        end 
+        $write(" Start Byte %h ",USEStartByte);
+        $write(" USEStreamState  ",USEStreamState," USECurrentBank ",USECurrentBank," Token ", token," LastByteInMessage ",LastByteInMessage,"\n");
+       end 
     
     
     
