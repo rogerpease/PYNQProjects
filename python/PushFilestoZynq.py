@@ -6,17 +6,8 @@ from os import path
 import os 
   
 
+configDirectory = "."
 configFileName = "config.json"
-tries = 0
-
-configDirectory = "./"
-while tries < 6 and not os.path.exists(configDirectory + configFileName):
-   configDirectory = "../"+configDirectory
-   tries = tries + 1
-
-if (tries == 6):
-  print ("Could not find configfile")
-  sys.exit();
 
 with open(configFileName,"r") as fp:
   config = json.load(fp)
@@ -24,17 +15,25 @@ with open(configFileName,"r") as fp:
 
 
 PYNQBitstreamName = config["BitStreamName"]
+userFiles = config["UserFiles"]
 
 
   
 fileSet = [ 
  [configDirectory+"/images/"+PYNQBitstreamName+".bit", "/home/xilinx/pynq/overlays/"+PYNQBitstreamName+"/"],
- [configDirectory+"/images/"+PYNQBitstreamName+".hwh", "/home/xilinx/pynq/overlays/"+PYNQBitstreamName+"/"],
- [configDirectory+"/python/"+ PYNQBitstreamName+".py", "/home/xilinx" ] ]; 
+ [configDirectory+"/images/"+PYNQBitstreamName+".hwh", "/home/xilinx/pynq/overlays/"+PYNQBitstreamName+"/"]]
+
+for userFile in userFiles:  
+  pair = [configDirectory+"/"+userFile, "/home/xilinx/"+PYNQBitstreamName+"/" ] 
+  fileSet += [pair]
+
+print (fileSet)
+
 
 hostip = "192.168.1.128"
 commands= []
 commands.append("ssh xilinx@"+hostip+"  mkdir /home/xilinx/pynq/overlays/"+PYNQBitstreamName )
+commands.append("ssh xilinx@"+hostip+"  mkdir /home/xilinx/"+PYNQBitstreamName )
 
 for filePair in fileSet:
   localFile = filePair[0]
