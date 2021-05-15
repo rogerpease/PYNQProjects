@@ -184,6 +184,9 @@ class AXIStreamCompressorWrapperClass : VAXIStreamCompressor
       int numElementsToCompare = std::max(sentData.size(),capturedData.size()); 
           numElementsToCompare -= numElementsToCompare % FIFO_OUT_WIDTH_BYTES; 
 
+      // Sanity check our Stream elements index. 
+      assert (numElementsToCompare > (NUMBYTESPASTDELIMITER * NUMSTREAMLENGTHS)/FIFO_OUT_WIDTH_BYTES); 
+
       bool fail = false; 
 
       std::stringstream debugString; 
