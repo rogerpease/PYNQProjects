@@ -17,7 +17,7 @@
 //  Then we shift down by 3. Shift by 2 on the first cycle and 1 on the second. USEStartByte is decremented with each shift. 
 //
 //  Then we set USEStreamByteLengthOut. Once the data is taken (USEStreamDataTaken==1), USEStreamByteLengthOut 
-//    is set to 0. 
+//    is set to 0 and the module begins expecting more data. 
 // 
 //  
 //
