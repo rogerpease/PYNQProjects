@@ -46,14 +46,32 @@ module CompressionModule
    genvar CSEByteNumber;
    for (CSEByteNumber = 0; CSEByteNumber < MAX_COMPRESSED_STREAM_ELEMENT_LENGTH_BYTES; CSEByteNumber++)
       assign CSEData_d[CSEByteNumber] = (reset) ? 0 : 
-                                (USEByteCount != 0) ? USEData[CSEByteNumber] : 
-                                 (CSEShift) ? CSEData[(CSEByteNumber + SHIFTLENGTH_BYTES)%MAX_COMPRESSED_STREAM_ELEMENT_LENGTH_BYTES] :
-                                              CSEData[CSEByteNumber]; 
-                                              
+                                 // Lots of data, shifting or not. 
+                                 ((CSEByteCount > SHIFTLENGTH_BYTES) && CSEShift) ? 
+                                           CSEData[(CSEByteNumber + SHIFTLENGTH_BYTES)%MAX_COMPRESSED_STREAM_ELEMENT_LENGTH_BYTES] :
+                                 ((CSEByteCount > SHIFTLENGTH_BYTES) && (CSEShift == 0)) ? 
+                                           CSEData[CSEByteNumber] :  
+                                 // Little data shifting or not. 
+                                 ((CSEByteCount > 0)  && (CSEShift == 1) && (USEByteCount > 0)) ? USEData[CSEByteNumber]:  
+                                 ((CSEByteCount > 0)  && (CSEShift == 0)) ? CSEData[CSEByteNumber]:  
+                                 // No data. 
+                                 (USEByteCount != 0) ? USEData[CSEByteNumber] : 0; 
+
+ 
+   
+   always @(negedge clk) 
+   begin 
+     $display("Compression Module In:  USEData %h %h",USEData,USEByteCount); 
+     $display("Compression Module Out: CSEData %h %h %d",CSEData,CSEByteCount, CSEShift); 
+   end                                              
+  
    assign CSEByteCount_d = (reset) ? 0: 
-                           (USEByteCount != 0 )  ? USEByteCount :
-                           (CSEShift) ? ((CSEByteCount > SHIFTLENGTH_BYTES) ? (CSEByteCount - SHIFTLENGTH_BYTES): 0) :
-                           CSEByteCount; 
+                            ((CSEByteCount > SHIFTLENGTH_BYTES) && CSEShift) ? (CSEByteCount - SHIFTLENGTH_BYTES): 
+                            ((CSEByteCount > SHIFTLENGTH_BYTES) && (CSEShift == 0)) ? CSEByteCount : 
+                            ((CSEByteCount > 0)  && (CSEShift == 1) && (USEByteCount > 0)) ? USEByteCount:  
+                            ((CSEByteCount > 0)  && (CSEShift == 0)) ? CSEByteCount :
+                           ((USEByteCount != 0) && (CSEByteCount == 0))  ? USEByteCount :
+                           0; 
        
     
     always @(posedge clk) CSEData <= CSEData_d;

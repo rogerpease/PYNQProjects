@@ -37,7 +37,6 @@ module ReturnFIFO
    
    input wire endOfStream, 
 
-
    output reg [(NUM_BYTES_OUTPUT_WIDTH)-1:0][7:0] dataOut,
    output reg dataOutValid
 );
@@ -51,6 +50,7 @@ module ReturnFIFO
  
  
 
+/* verilator lint_off WIDTH */
    
   
    wire spaceAvailable,dataAvailable,takeData;
@@ -61,7 +61,7 @@ module ReturnFIFO
    assign spaceAvailable = ((FIFO_DEPTH - FifoCount) >= numBytesToRead) ? 1 : 0;
    assign numBytesToRead =  (NUM_BYTES_INPUT_WIDTH > dataInBytesValid) ? dataInBytesValid : NUM_BYTES_INPUT_WIDTH;
          
-   assign takeData = spaceAvailable && numBytesToRead;
+   assign takeData = spaceAvailable && (numBytesToRead != 0);
    assign dataInShift = takeData; 
    assign dataAvailable = (FifoCount >= NUM_BYTES_OUTPUT_WIDTH) ? 1 : 0; 
    
@@ -120,5 +120,16 @@ module ReturnFIFO
          FifoCount <= FifoCount + numBytesToRead;
      end
    end      
+   always @(negedge clk) 
+   begin
+     integer elementNum; 
+     integer elementCount = FifoEnd - FifoStart; 
+     $display("Fifo Start ",FifoStart," Fifo End ", FifoEnd, " FifoCount ", FifoCount); 
+     for (elementNum = 0;  elementNum <= elementCount; elementNum++)
+     begin 
+       $write("   Index  ",(elementNum+FifoStart) %FIFO_DEPTH," Element %h\n", FifoPieces[(elementNum+FifoStart)%FIFO_DEPTH]) ;
+     end 
+   end 
+/* verilator lint_on WIDTH */
 
 endmodule
