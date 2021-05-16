@@ -9,6 +9,7 @@ import sys
 import json 
 import time 
 
+
 ol = Overlay("SubtractBranchNegative.bit") 
 sbn=ol.SBNModule_0
 
@@ -18,13 +19,30 @@ REGWRDATA = 18<<2
 REGRDDATA = 19<<2 
 IP        = 20<<2 
 
-with open(sys.argv[1]) as f: 
-   data = f.read()
-
-sbnconfig = json.loads(data)
 
 #
-# Reset
+# Load the assembled file: 
+#
+
+if (len(sys.argv)) > 1: 
+  with open(sys.argv[1]) as f: 
+    data = f.read()
+  sbnconfig = json.loads(data)
+
+#
+# Load the resultsfile: 
+#
+
+sbnresults = [] 
+
+if (len(sys.argv)) > 2: 
+  with open(sys.argv[2]) as f: 
+    data = f.read()
+  sbnresults = json.loads(data)
+
+
+#
+# Reset the device 
 #
 sbn.write(CONTROL,0x1) 
 sbn.write(CONTROL,0x0) 
@@ -60,6 +78,22 @@ print("CONTROL Reads " + hex(sbn.read(CONTROL)))
 for i in range(0,32):
   print("Control Register " + str(i) + " " + hex(sbn.read(i<<2)))
 
+fail = 0
 for i in range(len(sbnconfig["Registers"])):
   sbn.write(REGADDR,i) 
-  print("Datapath Register " + str(i) + " " + hex(sbn.read(REGRDDATA)))
+  if (len(sbnresults)):
+    actual  = sbn.read(REGRDDATA)
+    expected = sbnresults["Registers"][i]
+    print("Datapath Register " + str(i) + " Actual  " + hex(sbn.read(REGRDDATA)) + " Expected " + hex(sbnresults["Registers"][i]))
+    if ((actual & 0xFFFF) != (expected & 0xFFFF)):
+      print ("FAIL!")  
+      fail = 1
+  else: 
+    print("Datapath Register " + str(i) + " Actual  " + hex(sbn.read(REGRDDATA)))
+
+if (fail):
+  exit(1)
+else:
+  if (len(sbnresults)):
+    print("PASS!")
+  exit(0)
