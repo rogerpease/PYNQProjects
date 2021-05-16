@@ -120,6 +120,8 @@ module ReturnFIFO
          FifoCount <= FifoCount + numBytesToRead;
      end
    end      
+
+`ifdef VERILATOR
    always @(negedge clk) 
    begin
      integer elementNum; 
@@ -130,6 +132,7 @@ module ReturnFIFO
        $write("   Index  ",(elementNum+FifoStart) %FIFO_DEPTH," Element %h\n", FifoPieces[(elementNum+FifoStart)%FIFO_DEPTH]) ;
      end 
    end 
+`endif 
 /* verilator lint_on WIDTH */
 
 endmodule

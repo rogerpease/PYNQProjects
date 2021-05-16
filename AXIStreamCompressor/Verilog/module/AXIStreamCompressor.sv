@@ -1,9 +1,9 @@
 `timescale 1ns/1ps
 //
-// Top level syntheizeable module... instances:
+//   Top-level module for AXI Stream Compressor. 
+// 
+//
 
-//  (Multiple of) StreamElement.sv 
-//  (One of) CompressAndReturn.sv 
 
 /* verilator lint_off WIDTH */ 
 
@@ -24,13 +24,24 @@ module AXIStreamCompressor
       input clk, 
       input reset,
       input wire  [DATA_BUS_WIDTH_BYTES-1:0][7:0] dataIn,
-      input wire  dataInValid,
+      input wire   dataInValid,
+      input wire   dataInSTRB,
+      output wire  dataInReady,
+
       output wire [DATA_BUS_WIDTH_BYTES-1:0][7:0] dataOut, 
-      output wire dataOutValid
+      output wire dataOutValid,
+      output wire [DATA_BUS_WIDTH_BYTES-1:0] dataOutSTRB,
+      input  wire dataOutReady
+
   );
 
+  assign  dataInReady  = 1;
+  assign  dataOutSTRB  = 8'b11111111;
+
+
   // 
-  // Each of these stream Elements can take 
+  // For routing between the Stream Capture Elements and the Compression Elements. 
+  //    USE = "Uncompressed Stream Element"
   // 
 
   wire [MAX_UNCOMPRESSED_BYTES-1:0][7:0]     USEStreamOuts       [NUM_STREAM_ELEMENTS-1:0];
@@ -90,34 +101,36 @@ module AXIStreamCompressor
    end 
 
 
+   //
+   // TODO: Add a second compression module to improve bandwidth. 
+   //
 
-    reg [1:0] StreamElementInUse;
+   reg [1:0] StreamElementInUse;
 
-    always_ff @(posedge clk) 
-    begin 
-      if (reset)
-      begin  
-        StreamElementInUse =  0;
-      end 
-      else
-      begin 
-        $display("AXIStreamCompressor CSEByteCount: ",CSEByteCount, "(d) CSEShiftFromOutFIFO ",CSEShiftFromOutFIFO,
+   always_ff @(posedge clk) 
+   begin 
+     if (reset)
+     begin  
+       StreamElementInUse =  0;
+     end 
+     else
+     begin 
+       $display("AXIStreamCompressor CSEByteCount: ",CSEByteCount, "(d) CSEShiftFromOutFIFO ",CSEShiftFromOutFIFO,
                 "(d) USEByteCountMuxedToCompression ",USEByteCountMuxedToCompression,"(d)"); 
-         USEStreamDataTakens[0] = 0;
-         USEStreamDataTakens[1] = 0;
-         USEStreamDataTakens[2] = 0;
-         USEStreamDataTakens[3] = 0;
-         if (
-          ((CSEByteCount == 0) || ((CSEByteCount < FIFO_MAX_INGEST_BYTES) && (CSEShiftFromOutFIFO))) && 
-           (USEByteCountMuxedToCompression > 0) // There was data here in the first place. 
-          )
-         begin 
-            USEStreamDataTakens[StreamElementInUse] = 1;
-            $display("AXIStreamCompressor: Stream Element data taken on: ",StreamElementInUse);
-            StreamElementInUse = (StreamElementInUse+1) % NUM_STREAM_ELEMENTS;
-            $display("AXIStreamCompressor: Stream Element being updated to (net cycle):",StreamElementInUse);
-
-         end 
+       USEStreamDataTakens[0] = 0;
+       USEStreamDataTakens[1] = 0;
+       USEStreamDataTakens[2] = 0;
+       USEStreamDataTakens[3] = 0;
+       if (
+        ((CSEByteCount == 0) || ((CSEByteCount < FIFO_MAX_INGEST_BYTES) && (CSEShiftFromOutFIFO))) && 
+         (USEByteCountMuxedToCompression > 0) // There was data here in the first place. 
+        )
+       begin 
+          USEStreamDataTakens[StreamElementInUse] = 1;
+          $display("AXIStreamCompressor: Stream Element data taken on: ",StreamElementInUse);
+          StreamElementInUse = (StreamElementInUse+1) % NUM_STREAM_ELEMENTS;
+          $display("AXIStreamCompressor: Stream Element being updated to (net cycle):",StreamElementInUse);
+        end 
       end 
     end 
 
@@ -147,7 +160,6 @@ module AXIStreamCompressor
    always @(posedge clk) 
    begin 
      $display("CSEDataToMux ",CSEDataToMux," BC: ",CSEByteCount," Shift Out ",CSEShiftFromOutFIFO);
-  
    end 
 
    ReturnFIFO  
