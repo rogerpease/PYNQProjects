@@ -1,0 +1,7 @@
+{ "FPGAImagePath": "FPGAImage", "BitStreamName": "FrameCoprocessor",
+"TopLevelTB": "SBNModule_tb",
+
+"UserFiles": [ "python/RunFrameCoprocessor.py"]
+
+
+} 
