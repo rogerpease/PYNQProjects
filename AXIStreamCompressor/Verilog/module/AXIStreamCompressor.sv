@@ -115,21 +115,21 @@ module AXIStreamCompressor
      end 
      else
      begin 
-       $display("AXIStreamCompressor CSEByteCount: ",CSEByteCount, "(d) CSEShiftFromOutFIFO ",CSEShiftFromOutFIFO,
+       $display("AXIStreamCompressor Compressor Mux CSEByteCount: ",CSEByteCount, "(d) CSEShiftFromOutFIFO ",CSEShiftFromOutFIFO,
                 "(d) USEByteCountMuxedToCompression ",USEByteCountMuxedToCompression,"(d)"); 
        USEStreamDataTakens[0] = 0;
        USEStreamDataTakens[1] = 0;
        USEStreamDataTakens[2] = 0;
        USEStreamDataTakens[3] = 0;
        if (
-        ((CSEByteCount == 0) || ((CSEByteCount < FIFO_MAX_INGEST_BYTES) && (CSEShiftFromOutFIFO))) && 
+        ((CSEByteCount == 0) || ((CSEByteCount <= FIFO_MAX_INGEST_BYTES) && (CSEShiftFromOutFIFO))) && 
          (USEByteCountMuxedToCompression > 0) // There was data here in the first place. 
         )
        begin 
           USEStreamDataTakens[StreamElementInUse] = 1;
-          $display("AXIStreamCompressor: Stream Element data taken on: ",StreamElementInUse);
+          $display("AXIStreamCompressor Compressor Mux: Stream Element data taken on: ",StreamElementInUse);
           StreamElementInUse = (StreamElementInUse+1) % NUM_STREAM_ELEMENTS;
-          $display("AXIStreamCompressor: Stream Element being updated to (net cycle):",StreamElementInUse);
+          $display("AXIStreamCompressor Compressor Mux: Stream Element being updated to (net cycle):",StreamElementInUse);
         end 
       end 
     end 
@@ -149,12 +149,13 @@ module AXIStreamCompressor
     CompressionModule_inst
       (.clk(clk),
        .reset(reset),
-       .USEData(USEDataMuxedToCompression), 
+
+       .USEData     (USEDataMuxedToCompression), 
        .USEByteCount(USEByteCountMuxedToCompression), 
 
-       .CSEData(CSEDataToMux), 
+       .CSEData     (CSEDataToMux), 
        .CSEByteCount(CSEByteCount), 
-       .CSEShift(CSEShiftFromOutFIFO));
+       .CSEShift    (CSEShiftFromOutFIFO));
 
 
    always @(posedge clk) 
