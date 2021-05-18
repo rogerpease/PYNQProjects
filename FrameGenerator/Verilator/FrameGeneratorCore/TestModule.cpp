@@ -25,7 +25,7 @@ class FrameGeneratorCoreWrapperClass : VFrameGeneratorCore
      if (debug) printf("Clock Toggled\n"); 
     
   } 
-  void Reset() { this->reset = 1; ToggleClock(); ToggleClock(); this->reset = 0; ToggleClock(); } 
+  void Reset() { this->reset = 0; ToggleClock(); ToggleClock(); this->reset = 1; ToggleClock(); } 
 
 
   bool DriveStreamCycleAndCheckResult() 
@@ -34,21 +34,27 @@ class FrameGeneratorCoreWrapperClass : VFrameGeneratorCore
       Reset(); 
       ToggleClock(); 
       this->dataOutReady = 1; 
+#define DATAOUTPERIOD (256) 
+      this->dataOutLastPeriod = DATAOUTPERIOD-1; 
       const int height = 1080; 
       const int width  = 1920; 
       const int bytesperpixel  = 3; 
       const int frameSizeBytes = height*width*bytesperpixel;  
+  
+      this->controlRegister = 1; 
+  
       unsigned char * framePtr = (unsigned char *) malloc(frameSizeBytes);  
       assert(framePtr != nullptr); 
+      int cycle = 0; 
       for (int i = 0; i < frameSizeBytes; i++) 
       {
          this->dataOutReady = 1; 
          while (!this->dataOutValid) { ToggleClock(); } 
+         *(framePtr + i) = this->dataOut;
+         if (this->dataOutLast == 1) { if (cycle != 0) { if ((cycle % DATAOUTPERIOD) == 0) { } else { printf("dataOutLast should be low cycle %d",cycle); exit(1); } } } 
+         else                        { if (cycle != 0) { if ((cycle % DATAOUTPERIOD) != 0) { } else { printf("dataOutLast should be high cycle %d",cycle); exit(1);} } } 
 
-         *(framePtr + i) = this->dataOut; 
-         if (this->dataOutLast == 1) { printf("dataOutLast == 1 at dataPoint %d\n",i); }
-
-         ToggleClock(); 
+         ToggleClock(); cycle ++; 
       } 
  
       std::ofstream f("outfile.bin"); 
