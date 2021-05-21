@@ -1,7 +1,9 @@
-{ "FPGAImagePath": "FPGAImage", "BitStreamName": "FrameCoprocessor",
-"TopLevelTB": "SBNModule_tb",
+{ "FPGAImagePath": "project_1", "BitStreamName": "FrameGenerator",
 
-"UserFiles": [ "python/RunFrameCoprocessor.py"]
+
+"UserFiles": [ "python/RunFrameGenerator.py","testImages/Golden_RedGreenBlueWhite1920x1080_RGB24.raw"]  
+
+
 
 
 } 
