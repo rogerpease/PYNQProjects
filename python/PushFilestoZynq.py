@@ -19,29 +19,22 @@ userFiles = config["UserFiles"]
 
 
   
-fileSet = [ 
- [configDirectory+"/images/"+PYNQBitstreamName+".bit", "/home/xilinx/pynq/overlays/"+PYNQBitstreamName+"/"],
- [configDirectory+"/images/"+PYNQBitstreamName+".hwh", "/home/xilinx/pynq/overlays/"+PYNQBitstreamName+"/"]]
+fileSet = [ configDirectory+"/images/"+PYNQBitstreamName+".bit", configDirectory+"/images/"+PYNQBitstreamName+".hwh"]
 
 for userFile in userFiles:  
-  pair = [configDirectory+"/"+userFile, "/home/xilinx/"+PYNQBitstreamName+"/" ] 
-  fileSet += [pair]
+  fileSet += [configDirectory+"/"+userFile]
 
 print (fileSet)
 
-
 hostip = "192.168.1.128"
 commands= []
-commands.append("ssh xilinx@"+hostip+"  mkdir /home/xilinx/pynq/overlays/"+PYNQBitstreamName )
 commands.append("ssh xilinx@"+hostip+"  mkdir /home/xilinx/"+PYNQBitstreamName )
 
-for filePair in fileSet:
-  localFile = filePair[0]
-  remoteFile = filePair[1]
+for localFile in fileSet:
   if not path.exists(localFile): 
     print ("Could not find "+localFile); 
-  else: 
-    commands.append("scp " + localFile + " xilinx@"+hostip+':'+remoteFile) 
+
+commands.append("scp " + " ".join(fileSet) + " xilinx@"+hostip+':/home/xilinx/'+PYNQBitstreamName) 
 
 
 print (commands)
