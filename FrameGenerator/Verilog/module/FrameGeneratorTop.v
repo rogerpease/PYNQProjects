@@ -9,7 +9,6 @@
 	(
 		// Users to add parameters here
 
-                parameter integer DATAOUTWIDTHBYTES = 1, 
 		// User parameters ends
 		// Do not modify the parameters beyond this line
  
@@ -24,11 +23,11 @@
                 input frameOut_aclk,
                 input frameOut_aresetn,
                           
-                output [DATAOUTWIDTHBYTES*8-1:0] frameOut_tdata,
+                output [7:0] frameOut_tdata,
                 output frameOut_tlast,
                 output frameOut_tvalid,
                 input  wire frameOut_tready,
-                output [DATAOUTWIDTHBYTES-1:0] frameOut_tstrb,
+                output frameOut_tstrb,
 
 
 		// User ports ends
@@ -59,13 +58,13 @@
 		input wire  RegisterFile_rready
 	);
   
-        wire [31:0] register0; 
         wire [31:0] register1; 
         wire [31:0] register2; 
         wire [31:0] register3; 
         wire [15:0] CoreID; 
         wire [31:0] rowColCounter; 
         wire [31:0] controlRegister; 
+        wire [31:0] heightWidthRegister; 
 
 // Instantiation of Axi Bus Interface RegisterFile
 	FrameGeneratorTop_RegisterFile # ( 
@@ -73,7 +72,7 @@
 		.C_S_AXI_ADDR_WIDTH(C_RegisterFile_ADDR_WIDTH)
 	) FrameGeneratorTop_RegisterFile_inst (
                 .register0(controlRegister),
-                .register1(register1),
+                .register1(heightWidthRegister),
                 .register2(register2),
                 .register3(register3),
                 .CoreID(CoreID), 
@@ -113,6 +112,7 @@
           .CoreID(CoreID),
           .rowColCounter(rowColCounter), 
           .controlRegister(controlRegister), 
+          .heightWidthRegister(heightWidthRegister), 
        
           .dataOut      (frameOut_tdata),
           .dataOutLast  (frameOut_tlast),
