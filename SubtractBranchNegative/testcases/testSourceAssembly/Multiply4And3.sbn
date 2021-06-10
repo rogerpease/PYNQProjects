@@ -1,9 +1,0 @@
-# Multiply R0 by R1, put result in R2
-SBN R1,0,R1,1  # Make R0 into -4 then keep substracting -4. Take next instruciton anyway  
-SBN R2,R2,1,3
-SBN R3,R3,R1,0
-SBN R0,0,1,-2  #Branch back to 0 to keep subtracting
-SBN R0,R0,R0,0 #DONE 
-.setreg R1 4
-.setreg R2 3
-.setreg R3 0 
