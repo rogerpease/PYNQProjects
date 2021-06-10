@@ -23,7 +23,7 @@ class NextStreamDataInClass  {
 unsigned char myBaseballData[] = {
          //                     AVG                     AB                   H                          BB 
          'A',' ', 'R' ,'F',0x2c,BYTE1(344),BYTE0(344),BYTE1(512),BYTE0(512),BYTE1(212),BYTE0(212), BYTE1(100),BYTE0(100),
-         //                 2B                 3B                  HR                   K
+         //                 2B                 3B                  HR                   K       SB 
                        BYTE1(30),BYTE0(30),BYTE1(512),BYTE0(512),BYTE1(61),BYTE0(61), 0xFF,0xFF,0xFF,
          'B','L','e','f','t', ' ' ,'F','i','e','l','d','e','r',0x2c, BYTE1(200),BYTE0(200),BYTE1(512),BYTE0(512),BYTE1(212),BYTE0(212), BYTE1(100),BYTE0(100),
                                                                  BYTE1(30),BYTE0(30),BYTE1(512),BYTE0(512),BYTE1(61),BYTE0(61), 0xFF,0xFF,0xFF,

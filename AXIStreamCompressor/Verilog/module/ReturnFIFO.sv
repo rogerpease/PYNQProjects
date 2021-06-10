@@ -59,7 +59,7 @@ module ReturnFIFO
    wire [$clog2(NUM_BYTES_INPUT_WIDTH):0] numBytesToRead;
 
    assign spaceAvailable = ((FIFO_DEPTH - FifoCount) >= numBytesToRead) ? 1 : 0;
-   assign numBytesToRead =  (NUM_BYTES_INPUT_WIDTH > dataInBytesValid) ? dataInBytesValid : NUM_BYTES_INPUT_WIDTH;
+   assign numBytesToRead =  (NUM_BYTES_INPUT_WIDTH >= dataInBytesValid) ? dataInBytesValid : NUM_BYTES_INPUT_WIDTH;
          
    assign takeData = spaceAvailable && (numBytesToRead != 0);
    assign dataInShift = takeData; 

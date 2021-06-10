@@ -1,0 +1,9 @@
+{ "FPGAImagePath": "project_1", "BitStreamName": "FrameGenerator",
+
+
+"UserFiles": [ "python/RunFrameGenerator.py","testImages/Golden_RedGreenBlueWhite1920x1080_RGB24.raw"]  
+
+
+
+
+} 

@@ -355,7 +355,7 @@ module StreamElement
        for (byteNum= DEEPEST_NUM_BYTES_MESSAGE_COULD_OCCUPY-1; byteNum >= 0; byteNum = byteNum - 1) 
         begin 
           $write("%h",USEStreamByteFifo[byteNum]);
-          if ((byteNum % 4) == 0) $write("_");
+          if (((byteNum % 4) == 0) && (byteNum % 8 != 0)) $write("_");
           if ((byteNum % 8) == 0) $write(" ");
         end 
         $write(" Start Byte %h ",USEStartByte);
